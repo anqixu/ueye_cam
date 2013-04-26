@@ -1,0 +1,5 @@
+<library path="lib/libueye_cam_nodelet">
+  <class name="ueye_cam/ueye_cam_nodelet" type="ueye_cam::UEyeCamNodelet" base_class_type="nodelet::Nodelet">
+    <description>Driver wrapper nodelet for UEye cameras by IDS Imaging Development Systems GMBH.</description>
+  </class>
+</library>

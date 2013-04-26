@@ -1,0 +1,20 @@
+<package>
+  <description brief="ueye_cam">
+    A ROS nodelet and node that wraps the driver API for UEye cameras
+    by IDS Imaging Development Systems GMBH.
+  </description>
+  <author>Anqi Xu</author>
+  <license>BSD</license>
+  <url>http://ros.org/wiki/ueye_cam</url>
+  <export>
+    <nodelet plugin="${prefix}/nodelet_plugins.xml" />
+  </export>
+  <depend package="roscpp"/>
+  <depend package="nodelet" />
+  <depend package="dynamic_reconfigure" />
+  <depend package="driver_base" />
+  <depend package="sensor_msgs"/>
+  <depend package="image_transport"/>
+  <depend package="camera_calibration_parsers" />
+</package>
+
