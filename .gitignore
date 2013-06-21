@@ -16,6 +16,9 @@ doxygen.cfg
 moc_*
 ~*
 *.cfgc
-docs
-lib
+docs/
+lib/
 .settings
+doc/
+cfg/cpp/
+src/ueye_cam/

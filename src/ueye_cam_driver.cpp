@@ -737,7 +737,7 @@ INT UEyeCamDriver::setFreeRunMode() {
     INT flash_delay = 0;
     UINT flash_duration = 1000;
     setFlashParams(flash_delay, flash_duration);
-    UINT nMode = IO_FLASH_MODE_FREERUN_LO_ACTIVE;
+    UINT nMode = IO_FLASH_MODE_FREERUN_HI_ACTIVE;
     if ((is_err = is_IO(cam_handle_, IS_IO_CMD_FLASH_SET_MODE,
         (void*) &nMode, sizeof(nMode))) != IS_SUCCESS) {
       ERROR_STREAM("Could not set free-run active-low flash output for UEye camera '" <<
@@ -781,7 +781,7 @@ INT UEyeCamDriver::setExtTriggerMode() {
           cam_name_ << "' (" << err2str(is_err) << ")");
       return is_err;
     }
-    if ((is_err = is_CaptureVideo(cam_handle_, IS_WAIT)) != IS_SUCCESS) {
+    if ((is_err = is_CaptureVideo(cam_handle_, IS_DONT_WAIT)) != IS_SUCCESS) {
       ERROR_STREAM("Could not start external trigger live video mode on UEye camera '" <<
           cam_name_ << "' (" << err2str(is_err) << ")");
       return is_err;

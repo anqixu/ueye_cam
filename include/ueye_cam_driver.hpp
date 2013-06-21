@@ -275,10 +275,18 @@ public:
    * Sets current camera to start capturing frames to internal buffer repeatedly.
    * This function also pre-configures the camera to operate in free-run,
    * non-triggered mode, and further attempts to enable the digital output pin
-   * to raise to HI during exposure (which is useful for triggering other cameras).
+   * to raise to HI during exposure (a.k.a. flash signal, which is useful for
+   * triggering other cameras).
    *
    * Note that this function only sets the mode. Frames are grabbed by
    * calling processNextFrame().
+   *
+   * IMPLEMENTATION DETAIL: the flash output signal is set to active-high, so
+   *   that multiple flash outputs from different cameras can be connected
+   *   to an OR combination gate to allow any camera to emit the flash trigger.
+   *   In contrast, in active-low mode, any de-activated camera will output LOW,
+   *   which would dominate over the triggering signals at the NAND combination
+   *   gate.
    *
    * \return IS_SUCCESS if successful, error flag otherwise (see err2str).
    */
@@ -293,8 +301,8 @@ public:
    * Note that this function only sets the mode. Frames are then grabbed by
    * calling processNextFrame().
    *
-   * IMPLEMENTATION DETAIL: currently this function supports HI-to-LO since
-   *                        our camera, UI-1246LE only supports this type
+   * IMPLEMENTATION DETAIL: currently this function supports falling-edge
+   *   trigger only, since our camera (UI-1246LE) only supports this mode
    *
    * \return IS_SUCCESS if successful, error flag otherwise (see err2str).
    */

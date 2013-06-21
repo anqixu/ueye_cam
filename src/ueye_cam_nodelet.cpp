@@ -966,6 +966,7 @@ void UEyeCamNodelet::frameGrabLoop() {
         }
 #endif
 
+        if (!frame_grab_alive_ || !ros::ok()) break;
         copy((char*) cam_buffer_,
           ((char*) cam_buffer_) + cam_buffer_size_,
           ros_image_.data.begin());
@@ -973,10 +974,12 @@ void UEyeCamNodelet::frameGrabLoop() {
         ros_image_.header.seq = ros_cam_info_.header.seq = ros_frame_count_++;
         ros_cam_info_.width = cam_params_.image_width;
         ros_cam_info_.height = cam_params_.image_height;
+        if (!frame_grab_alive_ || !ros::ok()) break;
         ros_cam_pub_.publish(ros_image_, ros_cam_info_);
       }
     }
 
+    if (!frame_grab_alive_ || !ros::ok()) break;
     idleDelay.sleep();
   }
 
@@ -1021,7 +1024,7 @@ bool UEyeCamNodelet::saveIntrinsicsFile() {
   }
   return false;
 };
-
+// TODO: 0 bug where nodelet locks and requires SIGTERM when there are still subscribers (need to find where does code hang)
 
 }; // namespace ueye_cam
 
