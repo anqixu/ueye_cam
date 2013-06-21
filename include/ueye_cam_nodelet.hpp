@@ -80,6 +80,7 @@ public:
   const static double DEFAULT_EXPOSURE;
   const static double DEFAULT_FRAME_RATE;
   const static int DEFAULT_PIXEL_CLOCK;
+  const static int DEFAULT_FLASH_DURATION;
 
   UEyeCamNodelet();
 
@@ -90,7 +91,6 @@ public:
    * and starts live capturing / frame grabbing thread.
    */
   virtual void onInit();
-
 
   /**
    * Handles callbacks from dynamic_reconfigure.
@@ -104,12 +104,10 @@ protected:
    */
   INT queryCamParams();
 
-
   /**
    * Loads, validates, and updates static ROS parameters.
    */
   INT parseROSParams(ros::NodeHandle& local_nh);
-
 
   /**
    * Initializes the camera handle, loads UEye INI configuration, refreshes

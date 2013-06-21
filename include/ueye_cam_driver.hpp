@@ -261,18 +261,52 @@ public:
   INT setPixelClockRate(INT& clock_rate_mhz);
 
   /**
-   * Sets current camera to start capturing frames to internal buffer repeatedly.
+   * Updates the flash signal's delay (from start of exposure) and duration.
+   * The flash signal is routed to the digital output pin by default in
+   * setFreeRunMode(), and can act as a triggering signal for driving other
+   * cameras configured as setExtTriggerMode().
    *
-   * \return IS_SUCCESS if successful, error flag otherwise (see err2str).
+   * Note that setting flash parameters by itself may not have an effect, if
+   * the flash output is not enabled via is_IO().
    */
-  INT startLiveCapture();
+  INT setFlashParams(INT& delay_us, UINT& duration_us);
 
   /**
-   * Sets current camera to standby mode.
+   * Sets current camera to start capturing frames to internal buffer repeatedly.
+   * This function also pre-configures the camera to operate in free-run,
+   * non-triggered mode, and further attempts to enable the digital output pin
+   * to raise to HI during exposure (which is useful for triggering other cameras).
+   *
+   * Note that this function only sets the mode. Frames are grabbed by
+   * calling processNextFrame().
    *
    * \return IS_SUCCESS if successful, error flag otherwise (see err2str).
    */
-  INT stopLiveCapture();
+  INT setFreeRunMode();
+
+  /**
+   * Sets current camera to external trigger mode, where a HI to LO falling-edge
+   * signal on the digital input pin of the camera will trigger the camera to
+   * capture a frame. This function also resets the digital output pin to
+   * always be LO.
+   *
+   * Note that this function only sets the mode. Frames are then grabbed by
+   * calling processNextFrame().
+   *
+   * IMPLEMENTATION DETAIL: currently this function supports HI-to-LO since
+   *                        our camera, UI-1246LE only supports this type
+   *
+   * \return IS_SUCCESS if successful, error flag otherwise (see err2str).
+   */
+  INT setExtTriggerMode();
+
+  /**
+   * Disables either free-run or external trigger mode, and sets the current
+   * camera to standby mode.
+   *
+   * \return IS_SUCCESS if successful, error flag otherwise (see err2str).
+   */
+  INT setStandbyMode();
 
   /**
    * Waits for next frame to be available, then returns pointer to frame if successful.
@@ -291,8 +325,21 @@ public:
 
   inline bool isConnected() { return (cam_handle_ != (HIDS) 0); };
 
-  inline bool isLiveCapturing() {
-    return ((cam_handle_ != (HIDS) 0) && (is_CaptureVideo(cam_handle_, IS_GET_LIVE) == TRUE));
+  inline bool freeRunModeActive() {
+    return ((cam_handle_ != (HIDS) 0) &&
+        (is_SetExternalTrigger(cam_handle_, IS_GET_EXTERNALTRIGGER) == IS_SET_TRIGGER_OFF) &&
+        (is_CaptureVideo(cam_handle_, IS_GET_LIVE) == TRUE));
+  };
+
+  inline bool extTriggerModeActive() {
+    return ((cam_handle_ != (HIDS) 0) &&
+        (is_SetExternalTrigger(cam_handle_, IS_GET_EXTERNALTRIGGER) == IS_SET_TRIGGER_HI_LO) &&
+        (is_CaptureVideo(cam_handle_, IS_GET_LIVE) == TRUE));
+  };
+
+  inline bool isCapturing() {
+    return ((cam_handle_ != (HIDS) 0) &&
+        (is_CaptureVideo(cam_handle_, IS_GET_LIVE) == TRUE));
   };
 
   /**

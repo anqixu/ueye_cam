@@ -78,13 +78,12 @@ UEyeCamDriver::~UEyeCamDriver() {
 };
 
 
-
 INT UEyeCamDriver::connectCam(int new_cam_ID) {
   INT is_err = IS_SUCCESS;
   int numCameras;
 
   // Terminate any existing opened cameras
-  stopLiveCapture();
+  setStandbyMode();
 
   // Updates camera ID if specified.
   if (new_cam_ID >= 0) {
@@ -99,11 +98,7 @@ INT UEyeCamDriver::connectCam(int new_cam_ID) {
   } else if (numCameras < 1) {
     ERROR_STREAM("No UEye cameras are connected");
     return IS_NO_SUCCESS;
-  } else if (numCameras < (int) cam_id_) {
-    ERROR_STREAM("Cannot connect to camera ID " << cam_id_ <<
-      " since only " << numCameras << " cameras are connected");
-    return is_err;
-  }
+  } // NOTE: previously checked if ID < numCameras, but turns out that ID can be arbitrary
 
   // Attempt to open camera handle, and handle case where camera requires a
   // mandatory firmware upload
@@ -142,7 +137,7 @@ INT UEyeCamDriver::disconnectCam() {
   INT is_err = IS_SUCCESS;
 
   if (isConnected()) {
-    stopLiveCapture();
+    setStandbyMode();
 
     // Release existing camera buffers
     if (cam_buffer_ != NULL) {
@@ -207,8 +202,8 @@ INT UEyeCamDriver::setColorMode(string mode, bool reallocate_buffer) {
 
   INT is_err = IS_SUCCESS;
 
-  // Automatically stop live capture mode, to prevent access to memory buffer
-  stopLiveCapture();
+  // Stop capture to prevent access to memory buffer
+  setStandbyMode();
 
   // Set to specified color mode
   if (mode == "rgb8") {
@@ -286,8 +281,8 @@ INT UEyeCamDriver::setSubsampling(int& rate, bool reallocate_buffer) {
 
   INT is_err = IS_SUCCESS;
 
-  // Automatically stop live capture mode, to prevent access to memory buffer
-  stopLiveCapture();
+  // Stop capture to prevent access to memory buffer
+  setStandbyMode();
 
   INT rate_flag;
   INT supportedRates;
@@ -354,8 +349,8 @@ INT UEyeCamDriver::setBinning(int& rate, bool reallocate_buffer) {
 
   INT is_err = IS_SUCCESS;
 
-  // Automatically stop live capture mode, to prevent access to memory buffer
-  stopLiveCapture();
+  // Stop capture to prevent access to memory buffer
+  setStandbyMode();
 
   INT rate_flag;
   INT supportedRates;
@@ -422,8 +417,8 @@ INT UEyeCamDriver::setSensorScaling(double& rate, bool reallocate_buffer) {
 
   INT is_err = IS_SUCCESS;
 
-  // Automatically stop live capture mode, to prevent access to memory buffer
-  stopLiveCapture();
+  // Stop capture to prevent access to memory buffer
+  setStandbyMode();
 
   SENSORSCALERINFO sensorScalerInfo;
   is_err = is_GetSensorScalerInfo(cam_handle_, &sensorScalerInfo, sizeof(sensorScalerInfo));
@@ -580,7 +575,7 @@ INT UEyeCamDriver::setWhiteBalance(bool& auto_white_balance, INT& red_offset,
 
   // Set auto white balance mode and parameters
   double pval1 = auto_white_balance, pval2 = 0;
-  // TODO: bug: enabling auto white balance does not seem to have an effect; in ueyedemo it seems to change R/G/B gains automatically
+  // TODO: 9 bug: enabling auto white balance does not seem to have an effect; in ueyedemo it seems to change R/G/B gains automatically
   if ((is_err = is_SetAutoParameter(cam_handle_, IS_SET_ENABLE_AUTO_SENSOR_WHITEBALANCE,
       &pval1, &pval2)) != IS_SUCCESS) {
     if ((is_err = is_SetAutoParameter(cam_handle_, IS_SET_AUTO_WB_ONCE,
@@ -691,19 +686,72 @@ INT UEyeCamDriver::setPixelClockRate(INT& clock_rate_mhz) {
 };
 
 
-INT UEyeCamDriver::startLiveCapture() {
+INT UEyeCamDriver::setFlashParams(INT& delay_us, UINT& duration_us) {
+  INT is_err = IS_SUCCESS;
+
+  // Make sure parameters are within range supported by camera
+  IO_FLASH_PARAMS minFlashParams, maxFlashParams, newFlashParams;
+  if ((is_err = is_IO(cam_handle_, IS_IO_CMD_FLASH_GET_PARAMS_MIN,
+      (void*) &minFlashParams, sizeof(IO_FLASH_PARAMS))) != IS_SUCCESS) {
+    ERROR_STREAM("Could not retrieve flash parameter info (min) for UEye camera '" <<
+        cam_name_ << "' (" << err2str(is_err) << ")");
+    return is_err;
+  }
+  if ((is_err = is_IO(cam_handle_, IS_IO_CMD_FLASH_GET_PARAMS_MAX,
+      (void*) &maxFlashParams, sizeof(IO_FLASH_PARAMS))) != IS_SUCCESS) {
+    ERROR_STREAM("Could not retrieve flash parameter info (max) for UEye camera '" <<
+        cam_name_ << "' (" << err2str(is_err) << ")");
+    return is_err;
+  }
+  delay_us = (delay_us < minFlashParams.s32Delay) ? minFlashParams.s32Delay :
+      ((delay_us > maxFlashParams.s32Delay) ? maxFlashParams.s32Delay : delay_us);
+  duration_us = (duration_us < minFlashParams.u32Duration && duration_us != 0) ? minFlashParams.u32Duration :
+      ((duration_us > maxFlashParams.u32Duration) ? maxFlashParams.u32Duration : duration_us);
+  newFlashParams.s32Delay = delay_us;
+  newFlashParams.u32Duration = duration_us;
+  // WARNING: Setting s32Duration to 0, according to documentation, means
+  //          setting duration to total exposure time. If non-ext-triggered
+  //          camera is operating at fastest grab rate, then the resulting
+  //          flash signal will APPEAR as active LO when set to active HIGH,
+  //          and vice versa. This is why the duration is set manually.
+  if ((is_err = is_IO(cam_handle_, IS_IO_CMD_FLASH_SET_PARAMS,
+      (void*) &newFlashParams, sizeof(IO_FLASH_PARAMS))) != IS_SUCCESS) {
+    ERROR_STREAM("Could not set flash parameter info for UEye camera '" <<
+        cam_name_ << "' (" << err2str(is_err) << ")");
+    return is_err;
+  }
+
+  return is_err;
+};
+
+
+INT UEyeCamDriver::setFreeRunMode() {
   if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
 
   INT is_err = IS_SUCCESS;
 
-  if (!isLiveCapturing()) {
+  if (!freeRunModeActive()) {
+    setStandbyMode(); // No need to check for success
+
+    // Set the flash to a high active pulse for each image in the trigger mode
+    INT flash_delay = 0;
+    UINT flash_duration = 1000;
+    setFlashParams(flash_delay, flash_duration);
+    UINT nMode = IO_FLASH_MODE_FREERUN_LO_ACTIVE;
+    if ((is_err = is_IO(cam_handle_, IS_IO_CMD_FLASH_SET_MODE,
+        (void*) &nMode, sizeof(nMode))) != IS_SUCCESS) {
+      ERROR_STREAM("Could not set free-run active-low flash output for UEye camera '" <<
+          cam_name_ << "' (" << err2str(is_err) << ")");
+      return is_err;
+    }
+
     if ((is_err = is_EnableEvent(cam_handle_, IS_SET_EVENT_FRAME)) != IS_SUCCESS) {
       ERROR_STREAM("Could not enable frame event for UEye camera '" <<
           cam_name_ << "' (" << err2str(is_err) << ")");
       return is_err;
     }
     if ((is_err = is_CaptureVideo(cam_handle_, IS_WAIT)) != IS_SUCCESS) {
-      ERROR_STREAM("Could not start live video mode on UEye camera '" <<
+      ERROR_STREAM("Could not start free-run live video mode on UEye camera '" <<
           cam_name_ << "' (" << err2str(is_err) << ")");
       return is_err;
     }
@@ -714,12 +762,68 @@ INT UEyeCamDriver::startLiveCapture() {
 };
 
 
-INT UEyeCamDriver::stopLiveCapture() {
+INT UEyeCamDriver::setExtTriggerMode() {
   if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
 
   INT is_err = IS_SUCCESS;
 
-  if (isLiveCapturing()) {
+  if (!extTriggerModeActive()) {
+    setStandbyMode(); // No need to check for success
+
+    if ((is_err = is_EnableEvent(cam_handle_, IS_SET_EVENT_FRAME)) != IS_SUCCESS) {
+      ERROR_STREAM("Could not enable frame event for UEye camera '" <<
+          cam_name_ << "' (" << err2str(is_err) << ")");
+      return is_err;
+    }
+
+    if ((is_err = is_SetExternalTrigger(cam_handle_, IS_SET_TRIGGER_HI_LO)) != IS_SUCCESS) {
+      ERROR_STREAM("Could not enable falling-edge external trigger mode on UEye camera '" <<
+          cam_name_ << "' (" << err2str(is_err) << ")");
+      return is_err;
+    }
+    if ((is_err = is_CaptureVideo(cam_handle_, IS_WAIT)) != IS_SUCCESS) {
+      ERROR_STREAM("Could not start external trigger live video mode on UEye camera '" <<
+          cam_name_ << "' (" << err2str(is_err) << ")");
+      return is_err;
+    }
+    DEBUG_STREAM("Started falling-edge external trigger live video mode on UEye camera '" + cam_name_ + "'");
+  }
+
+  return is_err;
+};
+
+
+INT UEyeCamDriver::setStandbyMode() {
+  if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
+
+  INT is_err = IS_SUCCESS;
+
+  if (extTriggerModeActive()) {
+      if ((is_err = is_DisableEvent(cam_handle_, IS_SET_EVENT_FRAME)) != IS_SUCCESS) {
+        ERROR_STREAM("Could not disable frame event for UEye camera '" <<
+            cam_name_ << "' (" << err2str(is_err) << ")");
+        return is_err;
+      }
+      if ((is_err = is_SetExternalTrigger(cam_handle_, IS_SET_TRIGGER_OFF)) != IS_SUCCESS) {
+        ERROR_STREAM("Could not disable external trigger mode on UEye camera '" <<
+            cam_name_ << "' (" << err2str(is_err) << ")");
+        return is_err;
+      }
+      is_SetExternalTrigger(cam_handle_, IS_GET_TRIGGER_STATUS); // documentation seems to suggest that this is needed to disable external trigger mode (to go into free-run mode)
+      if ((is_err = is_StopLiveVideo(cam_handle_, IS_WAIT)) != IS_SUCCESS) {
+        ERROR_STREAM("Could not stop live video mode on UEye camera '" <<
+            cam_name_ << "' (" << err2str(is_err) << ")");
+        return is_err;
+      }
+      DEBUG_STREAM("Stopped external trigger mode on UEye camera '" + cam_name_ + "'");
+  } else if (freeRunModeActive()) {
+    UINT nMode = IO_FLASH_MODE_OFF;
+    if ((is_err = is_IO(cam_handle_, IS_IO_CMD_FLASH_SET_MODE,
+        (void*) &nMode, sizeof(nMode))) != IS_SUCCESS) {
+      ERROR_STREAM("Could not disable flash output for UEye camera '" <<
+          cam_name_ << "' (" << err2str(is_err) << ")");
+      return is_err;
+    }
     if ((is_err = is_DisableEvent(cam_handle_, IS_SET_EVENT_FRAME)) != IS_SUCCESS) {
       ERROR_STREAM("Could not disable frame event for UEye camera '" <<
           cam_name_ << "' (" << err2str(is_err) << ")");
@@ -730,7 +834,12 @@ INT UEyeCamDriver::stopLiveCapture() {
           cam_name_ << "' (" << err2str(is_err) << ")");
       return is_err;
     }
-    DEBUG_STREAM("Stopped live video mode on UEye camera '" + cam_name_ + "'");
+    DEBUG_STREAM("Stopped free-run live video mode on UEye camera '" + cam_name_ + "'");
+  }
+  if ((is_err = is_CameraStatus(cam_handle_, IS_STANDBY, IS_GET_STATUS)) != IS_SUCCESS) {
+    ERROR_STREAM("Could not set standby mode for UEye camera '" <<
+        cam_name_ << "' (" << err2str(is_err) << ")");
+    return is_err;
   }
 
   return is_err;
@@ -738,7 +847,7 @@ INT UEyeCamDriver::stopLiveCapture() {
 
 
 const char* UEyeCamDriver::processNextFrame(INT timeout_ms) {
-  if (!isLiveCapturing()) return NULL;
+  if (!freeRunModeActive() && !extTriggerModeActive()) return NULL;
 
   INT is_err = IS_SUCCESS;
 
@@ -756,7 +865,8 @@ const char* UEyeCamDriver::processNextFrame(INT timeout_ms) {
 INT UEyeCamDriver::reallocateCamBuffer() {
   INT is_err = IS_SUCCESS;
 
-  stopLiveCapture();
+  // Stop capture to prevent access to memory buffer
+  setStandbyMode();
 
   if (cam_buffer_ != NULL) {
     is_err = is_FreeImageMem(cam_handle_, cam_buffer_, cam_buffer_id_);

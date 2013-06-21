@@ -72,6 +72,7 @@ const string UEyeCamNodelet::DEFAULT_COLOR_MODE = "";
 const double UEyeCamNodelet::DEFAULT_EXPOSURE = 33.0;
 const double UEyeCamNodelet::DEFAULT_FRAME_RATE = 10.0;
 const int UEyeCamNodelet::DEFAULT_PIXEL_CLOCK = 25;
+const int UEyeCamNodelet::DEFAULT_FLASH_DURATION = 1000;
 
 
 UEyeCamNodelet::UEyeCamNodelet() :
@@ -106,6 +107,9 @@ UEyeCamNodelet::UEyeCamNodelet() :
   cam_params_.auto_frame_rate = false;
   cam_params_.frame_rate = DEFAULT_FRAME_RATE;
   cam_params_.pixel_clock = DEFAULT_PIXEL_CLOCK;
+  cam_params_.ext_trigger_mode = false;
+  cam_params_.flash_delay = 0;
+  cam_params_.flash_duration = DEFAULT_FLASH_DURATION;
 };
 
 
@@ -179,6 +183,9 @@ void UEyeCamNodelet::onInit() {
       "Auto White Balance:\t" << cam_params_.auto_white_balance << endl <<
       "WB Red Offset:\t\t" << cam_params_.white_balance_red_offset << endl <<
       "WB Blue Offset:\t\t" << cam_params_.white_balance_blue_offset << endl <<
+      "Flash Delay (us):\t" << cam_params_.flash_delay << endl <<
+      "Flash Duration (us):\t" << cam_params_.flash_duration << endl <<
+      "Ext Trigger Mode:\t" << cam_params_.ext_trigger_mode << endl <<
       "Auto Frame Rate:\t" << cam_params_.auto_frame_rate << endl <<
       "Frame Rate (Hz):\t" << cam_params_.frame_rate << endl <<
       "Pixel Clock (MHz):\t" << cam_params_.pixel_clock << endl
@@ -373,6 +380,29 @@ INT UEyeCamNodelet::parseROSParams(ros::NodeHandle& local_nh) {
       }
     }
   }
+  if (local_nh.hasParam("ext_trigger_mode")) {
+    local_nh.getParam("ext_trigger_mode", cam_params_.ext_trigger_mode);
+    // NOTE: no need to set any parameters, since external trigger / live-run
+    //       modes come into effect during frame grab loop, which is assumed
+    //       to not having been initialized yet
+  }
+  if (local_nh.hasParam("flash_delay")) {
+    local_nh.getParam("flash_delay", cam_params_.flash_delay);
+    // NOTE: no need to set any parameters, since flash delay comes into
+    //       effect during frame grab loop, which is assumed to not having been
+    //       initialized yet
+  }
+  if (local_nh.hasParam("flash_duration")) {
+    local_nh.getParam("flash_duration", cam_params_.flash_duration);
+    if (cam_params_.flash_duration < 0) {
+      NODELET_WARN_STREAM("Invalid flash duration: " << cam_params_.flash_duration <<
+          "; using current flash duration: " << prevCamParams.flash_duration);
+      cam_params_.flash_duration = prevCamParams.flash_duration;
+    }
+    // NOTE: no need to set any parameters, since flash duration comes into
+    //       effect during frame grab loop, which is assumed to not having been
+    //       initialized yet
+  }
   if (local_nh.hasParam("auto_frame_rate")) {
     local_nh.getParam("auto_frame_rate", cam_params_.auto_frame_rate);
     if (cam_params_.auto_frame_rate != prevCamParams.auto_frame_rate) {
@@ -552,6 +582,21 @@ void UEyeCamNodelet::configCallback(ueye_cam::UEyeCamConfig& config, uint32_t le
       config.white_balance_blue_offset) != IS_SUCCESS) return;
   }
 
+  // NOTE: nothing needs to be done for config.ext_trigger_mode, since frame grabber loop will re-initialize to the right setting
+
+  if (config.flash_delay != cam_params_.flash_delay ||
+      config.flash_duration != cam_params_.flash_duration) {
+    // NOTE: need to copy flash parameters to local copies since
+    //       cam_params_.flash_duration is type int, and also sizeof(int)
+    //       may not equal to sizeof(INT) / sizeof(UINT)
+    INT flash_delay = config.flash_delay;
+    UINT flash_duration = config.flash_duration;
+    if (setFlashParams(flash_delay, flash_duration) != IS_SUCCESS) return;
+    // Copy back actual flash parameter values that were set
+    config.flash_delay = flash_delay;
+    config.flash_duration = flash_duration;
+  }
+
   // Update local copy of parameter set to newly updated set
   cam_params_ = config;
 
@@ -725,6 +770,16 @@ INT UEyeCamNodelet::queryCamParams() {
   cam_params_.white_balance_red_offset = pval1;
   cam_params_.white_balance_blue_offset = pval2;
 
+  IO_FLASH_PARAMS currFlashParams;
+  if ((is_err = is_IO(cam_handle_, IS_IO_CMD_FLASH_GET_PARAMS,
+      (void*) &currFlashParams, sizeof(IO_FLASH_PARAMS))) != IS_SUCCESS) {
+    ERROR_STREAM("Could not retrieve current flash parameter info for UEye camera '" <<
+        cam_name_ << "' (" << err2str(is_err) << ")");
+    return is_err;
+  }
+  cam_params_.flash_delay = currFlashParams.s32Delay;
+  cam_params_.flash_duration = currFlashParams.u32Duration;
+
   if ((is_err = is_SetAutoParameter(cam_handle_,
       IS_GET_ENABLE_AUTO_SENSOR_FRAMERATE, &pval1, &pval2)) != IS_SUCCESS &&
       (is_err = is_SetAutoParameter(cam_handle_,
@@ -825,22 +880,46 @@ void UEyeCamNodelet::frameGrabLoop() {
 
   ros::Rate idleDelay(200);
 
+  int prevNumSubscribers = 0;
+  int currNumSubscribers = 0;
   while (frame_grab_alive_ && ros::ok()) {
     // Initialize live video mode if camera was previously asleep, and ROS image topic has subscribers;
     // and stop live video mode if ROS image topic no longer has any subscribers
-    if (ros_cam_pub_.getNumSubscribers() > 0) {
-      if (startLiveCapture() != IS_SUCCESS) {
-        ERROR_STREAM("Shutting down UEye camera interface...");
+    currNumSubscribers = ros_cam_pub_.getNumSubscribers();
+    if (currNumSubscribers > 0 && prevNumSubscribers <= 0) {
+      if (cam_params_.ext_trigger_mode) {
+        if (setExtTriggerMode() != IS_SUCCESS) {
+          NODELET_ERROR_STREAM("Shutting down UEye camera interface...");
+          ros::shutdown();
+          return;
+        }
+        NODELET_INFO_STREAM("Camera " << cam_name_ << " set to external trigger mode");
+      } else {
+        // NOTE: need to copy flash parameters to local copies since
+        //       cam_params_.flash_duration is type int, and also sizeof(int)
+        //       may not equal to sizeof(INT) / sizeof(UINT)
+        INT flash_delay = cam_params_.flash_delay;
+        UINT flash_duration = cam_params_.flash_duration;
+        if ((setFreeRunMode() != IS_SUCCESS) ||
+            (setFlashParams(flash_delay, flash_duration) != IS_SUCCESS)) {
+          NODELET_ERROR_STREAM("Shutting down UEye camera interface...");
+          ros::shutdown();
+          return;
+        }
+        // Copy back actual flash parameter values that were set
+        cam_params_.flash_delay = flash_delay;
+        cam_params_.flash_duration = flash_duration;
+        NODELET_INFO_STREAM("Camera " << cam_name_ << " set to free-run mode");
+      }
+    } else if (currNumSubscribers <= 0 && prevNumSubscribers > 0) {
+      if (setStandbyMode() != IS_SUCCESS) {
+        NODELET_ERROR_STREAM("Shutting down UEye camera interface...");
         ros::shutdown();
         return;
       }
-    } else if (ros_cam_pub_.getNumSubscribers() <= 0) {
-      if (stopLiveCapture() != IS_SUCCESS) {
-        ERROR_STREAM("Shutting down UEye camera interface...");
-        ros::shutdown();
-        return;
-      }
+      NODELET_INFO_STREAM("Camera " << cam_name_ << " set to standby mode");
     }
+    prevNumSubscribers = currNumSubscribers;
 
     // Send updated dyncfg parameters if previously changed
     if (cfg_sync_requested_) {
@@ -862,8 +941,8 @@ void UEyeCamNodelet::frameGrabLoop() {
     prevStartGrab = currStartGrab;
 #endif
 
-    if (isLiveCapturing()) {
-      INT eventTimeout = (cam_params_.auto_frame_rate) ?
+    if (isCapturing()) {
+      INT eventTimeout = (cam_params_.auto_frame_rate || cam_params_.ext_trigger_mode) ?
           (INT) 2000 : (INT) (1000.0 / cam_params_.frame_rate * 2);
       if (processNextFrame(eventTimeout) != NULL) {
         // Process new frame
@@ -901,7 +980,7 @@ void UEyeCamNodelet::frameGrabLoop() {
     idleDelay.sleep();
   }
 
-  stopLiveCapture();
+  setStandbyMode();
   frame_grab_alive_ = false;
 };
 
@@ -947,7 +1026,7 @@ bool UEyeCamNodelet::saveIntrinsicsFile() {
 }; // namespace ueye_cam
 
 
-// TODO: bug: when binning (and suspect when subsampling / sensor scaling), white balance / color gains seem to have different effects
+// TODO: 9 bug: when binning (and suspect when subsampling / sensor scaling), white balance / color gains seem to have different effects
 
 
 #include <pluginlib/class_list_macros.h>
