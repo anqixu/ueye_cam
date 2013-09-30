@@ -81,6 +81,9 @@ namespace ueye_cam {
  */
 class UEyeCamDriver {
 public:
+  constexpr static int ANY_CAMERA = 0;
+
+
   /**
    * Initializes member variables.
    */
@@ -354,8 +357,6 @@ public:
    * Stringifies UEye API error flag.
    */
   const static char* err2str(INT error);
-
-  const static int ANY_CAMERA = 0;
 
 
 protected:

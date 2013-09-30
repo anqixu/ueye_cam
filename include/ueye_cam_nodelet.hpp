@@ -71,16 +71,20 @@ typedef dynamic_reconfigure::Server<ueye_cam::UEyeCamConfig> ReconfigureServer;
  */
 class UEyeCamNodelet : public nodelet::Nodelet, public UEyeCamDriver {
 public:
+  constexpr static unsigned int RECONFIGURE_RUNNING = 0;
+  constexpr static unsigned int RECONFIGURE_STOP = 1;
+  constexpr static unsigned int RECONFIGURE_CLOSE = 3;
+  constexpr static int DEFAULT_IMAGE_WIDTH = 640;
+  constexpr static int DEFAULT_IMAGE_HEIGHT = 480;
+  constexpr static double DEFAULT_EXPOSURE = 33.0;
+  constexpr static double DEFAULT_FRAME_RATE = 10.0;
+  constexpr static int DEFAULT_PIXEL_CLOCK = 25;
+  constexpr static int DEFAULT_FLASH_DURATION = 1000;
+
   const static std::string DEFAULT_CAMERA_NAME;
   const static std::string DEFAULT_CAMERA_TOPIC;
-  const static std::string DEFAULT_CAMERA_INTRINSICS_FILENAME;
-  const static int DEFAULT_IMAGE_WIDTH;
-  const static int DEFAULT_IMAGE_HEIGHT;
   const static std::string DEFAULT_COLOR_MODE;
-  const static double DEFAULT_EXPOSURE;
-  const static double DEFAULT_FRAME_RATE;
-  const static int DEFAULT_PIXEL_CLOCK;
-  const static int DEFAULT_FLASH_DURATION;
+
 
   UEyeCamNodelet();
 

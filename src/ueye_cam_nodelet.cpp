@@ -48,7 +48,6 @@
 #include "ueye_cam_nodelet.hpp"
 #include <cstdlib> // needed for getenv()
 #include <ros/package.h>
-#include <driver_base/SensorLevels.h>
 #include <camera_calibration_parsers/parse_ini.h>
 #include <sensor_msgs/fill_image.h>
 #include <sensor_msgs/image_encodings.h>
@@ -64,15 +63,10 @@ using namespace sensor_msgs::image_encodings;
 namespace ueye_cam {
 
 
-const string UEyeCamNodelet::DEFAULT_CAMERA_NAME = "camera";
-const string UEyeCamNodelet::DEFAULT_CAMERA_TOPIC = "image_raw";
-const int UEyeCamNodelet::DEFAULT_IMAGE_WIDTH = 640;
-const int UEyeCamNodelet::DEFAULT_IMAGE_HEIGHT = 480;
-const string UEyeCamNodelet::DEFAULT_COLOR_MODE = "";
-const double UEyeCamNodelet::DEFAULT_EXPOSURE = 33.0;
-const double UEyeCamNodelet::DEFAULT_FRAME_RATE = 10.0;
-const int UEyeCamNodelet::DEFAULT_PIXEL_CLOCK = 25;
-const int UEyeCamNodelet::DEFAULT_FLASH_DURATION = 1000;
+const std::string UEyeCamNodelet::DEFAULT_CAMERA_NAME = "camera";
+const std::string UEyeCamNodelet::DEFAULT_CAMERA_TOPIC = "image_raw";
+const std::string UEyeCamNodelet::DEFAULT_COLOR_MODE = "";
+constexpr int UEyeCamDriver::ANY_CAMERA; // Needed since CMakeLists.txt creates 2 separate libraries: one for non-ROS parent class, and one for ROS child class
 
 
 UEyeCamNodelet::UEyeCamNodelet() :
@@ -482,7 +476,7 @@ void UEyeCamNodelet::configCallback(ueye_cam::UEyeCamConfig& config, uint32_t le
   // See if frame grabber needs to be restarted
   bool restartFrameGrabber = false;
   bool needToReallocateBuffer = false;
-  if (level == driver_base::SensorLevels::RECONFIGURE_STOP && frame_grab_alive_) {
+  if (level == RECONFIGURE_STOP && frame_grab_alive_) {
     restartFrameGrabber = true;
     stopFrameGrabber();
   }
@@ -845,10 +839,10 @@ INT UEyeCamNodelet::connectCam() {
 INT UEyeCamNodelet::disconnectCam() {
   INT is_err = IS_SUCCESS;
 
-	if (isConnected()) {
+  if (isConnected()) {
     stopFrameGrabber();
     is_err = UEyeCamDriver::disconnectCam();
-	}
+  }
 
   return is_err;
 };

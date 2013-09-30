@@ -11,19 +11,13 @@ in a timely manner.
 
 **LAYOUT:**
 - ueye_cam/
-  - bin/:                 compiled executables
-  - build/:               CMake-based build files
   - cfg/:                 dynamic_reconfigure configuration files
-  - docs/:                generated documents
   - include/:             header files
   - launch/:              roslaunch files
-  - lib/:                 compiled libraries
   - src/:                 source files
   - CMakeLists.txt:       CMake project configuration file
   - LICENSES:             license agreement
-  - mainpage.dox:         ROS main documentation page
-  - Makefile:             ROS CMake package bootstrap makefile (DO NOT MODIFY!)
-  - manifest.xml:         ROS manifest file
+  - package.xml:          ROS/Catkin package file
   - nodelet_plugins.xml:  ROS nodelet specification file
   - README.md:            this file
 - ~/.ros/camera_info/:    camera calibration yaml files
