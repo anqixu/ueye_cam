@@ -3,7 +3,7 @@
   
   <node pkg="nodelet" type="nodelet" name="ueye_cam_nodelet"
         args="load ueye_cam/ueye_cam_nodelet nodelet_manager">
-    <param name="camera_name" type="str" value="UI122xLE_C" /> <!-- == namespace for topics and services -->
+    <param name="camera_name" type="str" value="camera" /> <!-- == namespace for topics and services -->
     <param name="camera_topic" type="str" value="image_raw" />
     <param name="camera_id" type="int" value="0" /> <!-- 0 = any camera; 1+: camera ID -->
     <param name="camera_intrinsics_file" type="string" value="" /> <!-- default: ~/.ros/camera_info/<camera_name>.yaml -->

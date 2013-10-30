@@ -1,6 +1,6 @@
 <launch>
   <arg name="nodelet_manager_name" value="nodelet_manager" />
-  <arg name="camera_name" value="UI122xLE_C" />
+  <arg name="camera_name" value="camera" />
 
   <node pkg="nodelet" type="nodelet" name="$(arg nodelet_manager_name)" args="manager" output="screen" />
   

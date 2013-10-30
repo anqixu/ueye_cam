@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 
 project(ueye_cam)
 
-set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS} -g -Wall")
+set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS} -g -Wall") # For G++ <4.7; also appears to be supported in G++ 4.7+ as alias to c++11
 
 set(UEYE_INCLUDE_PATH /usr/include)
 set(UEYE_LIBRARY_PATH /usr/lib)
