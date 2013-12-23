@@ -856,6 +856,7 @@ const char* UEyeCamDriver::processNextFrame(INT timeout_ms) {
         timeout_ms)) != IS_SUCCESS) {
     ERROR_STREAM("Failed to acquire image from UEye camera '" <<
           cam_name_ << "' (" << err2str(is_err) << ")");
+    return NULL;
   }
 
   return cam_buffer_;
