@@ -45,7 +45,7 @@
 * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
 
-#include "ueye_cam_nodelet.hpp"
+#include "ueye_cam/ueye_cam_nodelet.hpp"
 #include <cstdlib> // needed for getenv()
 #include <ros/package.h>
 #include <camera_calibration_parsers/parse_ini.h>

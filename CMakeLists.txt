@@ -19,8 +19,8 @@ set(UEYECAM_LIB_SOURCES
 )
 
 set(UEYECAM_LIB_HEADERS
-  include/logging_macros.hpp
-  include/ueye_cam_driver.hpp
+  include/ueye_cam/logging_macros.hpp
+  include/ueye_cam/ueye_cam_driver.hpp
 )
 
 set(UEYECAM_NODELET_SOURCES
@@ -28,7 +28,7 @@ set(UEYECAM_NODELET_SOURCES
 )
 
 set(UEYECAM_NODELET_HEADERS
-  include/ueye_cam_nodelet.hpp
+  include/ueye_cam/ueye_cam_nodelet.hpp
 )
 
 find_package(catkin REQUIRED COMPONENTS
@@ -76,4 +76,6 @@ install(FILES nodelet_plugins.xml
   )
 
 install(DIRECTORY launch/
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch)
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+  )
+

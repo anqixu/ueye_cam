@@ -45,7 +45,7 @@
 * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
 
-#include "ueye_cam_driver.hpp"
+#include "ueye_cam/ueye_cam_driver.hpp"
 
 
 using namespace std;
