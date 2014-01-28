@@ -474,44 +474,62 @@ INT UEyeCamDriver::setGain(bool& auto_gain, INT& master_gain_prc, INT& red_gain_
   CAP(green_gain_prc, 0, 100);
   CAP(blue_gain_prc, 0, 100);
 
-  // Set auto gain
-  double pval1 = auto_gain, pval2 = 0;
-  if ((is_err = is_SetAutoParameter(cam_handle_, IS_SET_ENABLE_AUTO_SENSOR_GAIN,
-      &pval1, &pval2)) != IS_SUCCESS) {
-    if ((is_err = is_SetAutoParameter(cam_handle_, IS_SET_ENABLE_AUTO_GAIN,
+  double pval1 = 0, pval2 = 0;
+
+  if (auto_gain) {
+    // Set auto gain
+    pval1 = 1;
+    if ((is_err = is_SetAutoParameter(cam_handle_, IS_SET_ENABLE_AUTO_SENSOR_GAIN,
         &pval1, &pval2)) != IS_SUCCESS) {
-      WARN_STREAM("Auto gain mode is not supported for UEye camera '" <<
-          cam_name_ << "' (" << err2str(is_err) << ")");
-      auto_gain = false;
+      if ((is_err = is_SetAutoParameter(cam_handle_, IS_SET_ENABLE_AUTO_GAIN,
+          &pval1, &pval2)) != IS_SUCCESS) {
+        WARN_STREAM("Auto gain mode is not supported for UEye camera '" <<
+            cam_name_ << "' (" << err2str(is_err) << ")");
+        auto_gain = false;
+      }
     }
-  }
-
-  // Set gain boost
-  if (is_SetGainBoost(cam_handle_, IS_GET_SUPPORTED_GAINBOOST) != IS_SET_GAINBOOST_ON) {
-    gain_boost = false;
   } else {
-    if ((is_err = is_SetGainBoost(cam_handle_,
-        (gain_boost) ? IS_SET_GAINBOOST_ON : IS_SET_GAINBOOST_OFF))
-        != IS_SUCCESS) {
-      WARN_STREAM("Failed to " << ((gain_boost) ? "enable" : "disable") <<
-          " gain boost for UEye camera '" + cam_name_ + "'");
+    // Disable auto gain
+    if ((is_err = is_SetAutoParameter(cam_handle_, IS_SET_ENABLE_AUTO_SENSOR_GAIN,
+        &pval1, &pval2)) != IS_SUCCESS) {
+      if ((is_err = is_SetAutoParameter(cam_handle_, IS_SET_ENABLE_AUTO_GAIN,
+          &pval1, &pval2)) != IS_SUCCESS) {
+        DEBUG_STREAM("Auto gain mode is not supported for UEye camera '" <<
+            cam_name_ << "' (" << err2str(is_err) << ")");
+      }
+    }
+
+    // Set gain boost
+    if (is_SetGainBoost(cam_handle_, IS_GET_SUPPORTED_GAINBOOST) != IS_SET_GAINBOOST_ON) {
+      gain_boost = false;
+    } else {
+      if ((is_err = is_SetGainBoost(cam_handle_,
+          (gain_boost) ? IS_SET_GAINBOOST_ON : IS_SET_GAINBOOST_OFF))
+          != IS_SUCCESS) {
+        WARN_STREAM("Failed to " << ((gain_boost) ? "enable" : "disable") <<
+            " gain boost for UEye camera '" + cam_name_ + "'");
+      }
+    }
+
+    // Set manual gain parameters
+    if ((is_err = is_SetHardwareGain(cam_handle_, master_gain_prc,
+        red_gain_prc, green_gain_prc, blue_gain_prc)) != IS_SUCCESS) {
+      WARN_STREAM("Failed to set manual gains (master: " << master_gain_prc <<
+          "; red: " << red_gain_prc << "; green: " << green_gain_prc <<
+          "; blue: " << blue_gain_prc << ") for UEye camera '" + cam_name_ + "'");
     }
   }
 
-  // Set manual gain parameters
-  if ((is_err = is_SetHardwareGain(cam_handle_, master_gain_prc,
-      red_gain_prc, green_gain_prc, blue_gain_prc)) != IS_SUCCESS) {
-    WARN_STREAM("Failed to set manual gains (master: " << master_gain_prc <<
-        "; red: " << red_gain_prc << "; green: " << green_gain_prc <<
-        "; blue: " << blue_gain_prc << ") for UEye camera '" + cam_name_ + "'");
+  if (auto_gain) {
+    DEBUG_STREAM("Updated gain: auto");
+  } else {
+    DEBUG_STREAM("Updated gain: manual" <<
+        "\n   - master gain: " << master_gain_prc <<
+        "\n   - red gain: " << red_gain_prc <<
+        "\n   - green gain: " << green_gain_prc <<
+        "\n   - blue gain: " << blue_gain_prc <<
+        "\n   - gain boost: " << gain_boost);
   }
-
-  DEBUG_STREAM("Updated gain: " << ((auto_gain) ? "auto" : "manual") <<
-      "\n   - master gain: " << master_gain_prc <<
-      "\n   - red gain: " << red_gain_prc <<
-      "\n   - green gain: " << green_gain_prc <<
-      "\n   - blue gain: " << blue_gain_prc <<
-      "\n   - gain boost: " << gain_boost);
 
   return is_err;
 };
