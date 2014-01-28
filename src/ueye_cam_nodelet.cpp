@@ -550,6 +550,15 @@ void UEyeCamNodelet::configCallback(ueye_cam::UEyeCamConfig& config, uint32_t le
       config.green_gain != cam_params_.green_gain ||
       config.blue_gain != cam_params_.blue_gain ||
       config.gain_boost != cam_params_.gain_boost) {
+    // If any of the manual gain params change, then automatically toggle off auto_gain
+    if (config.master_gain != cam_params_.master_gain ||
+      config.red_gain != cam_params_.red_gain ||
+      config.green_gain != cam_params_.green_gain ||
+      config.blue_gain != cam_params_.blue_gain ||
+      config.gain_boost != cam_params_.gain_boost) {
+      config.auto_gain = false;
+    }
+
     if (setGain(config.auto_gain, config.master_gain,
         config.red_gain, config.green_gain,
         config.blue_gain, config.gain_boost) != IS_SUCCESS) return;
