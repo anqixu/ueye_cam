@@ -21,6 +21,7 @@
 
     <param name="color_mode" type="str" value="rgb8" /> <!-- valid options: 'rgb8', 'mono8', 'bayer_rggb8' -->
 
+    <!-- WARNING: the following 4 parameters specify dimensions for camera's area of interest. Values for image_width and image_height that are smaller than your camera's maximum values will result in cropped field of view. For typical cases, one should modify values for sensor_scaling / binning / subsampling to downsample the resulting ROS image to the desired dimensions, without losing potential field of view. -->
     <param name="image_width" type="int" value="640" />
     <param name="image_height" type="int" value="480" />
     <param name="image_top" type="int" value="-1" /> <!-- -1: center -->
