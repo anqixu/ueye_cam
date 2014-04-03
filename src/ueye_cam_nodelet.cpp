@@ -975,8 +975,10 @@ void UEyeCamNodelet::frameGrabLoop() {
           ros_image_.data.begin());
         ros_image_.header.stamp = ros_cam_info_.header.stamp = ros::Time::now();
         ros_image_.header.seq = ros_cam_info_.header.seq = ros_frame_count_++;
-        ros_cam_info_.width = cam_params_.image_width;
-        ros_cam_info_.height = cam_params_.image_height;
+
+        ros_cam_info_.width = cam_params_.image_width / cam_sensor_scaling_rate_ / cam_subsampling_rate_ / cam_binning_rate_;
+        ros_cam_info_.height = cam_params_.image_height / cam_sensor_scaling_rate_ / cam_subsampling_rate_ / cam_binning_rate_;
+
         if (!frame_grab_alive_ || !ros::ok()) break;
         ros_cam_pub_.publish(ros_image_, ros_cam_info_);
       }
