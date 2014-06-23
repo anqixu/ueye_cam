@@ -320,6 +320,22 @@ public:
   INT setStandbyMode();
 
   /**
+   * Mirrors the camera image upside down
+   * \param flip_horizontal Wheter to flip the image upside down or not.
+   *
+   * \return IS_SUCCESS if successful, error flag otherwise (see err2str).
+   */
+  INT setMirrorUpsideDown(bool flip_horizontal);
+
+  /**
+   * Mirrors the camera image left to right
+   * \param flip_vertical Wheter to flip the image left to right or not.
+   *
+   * \return IS_SUCCESS if successful, error flag otherwise (see err2str).
+   */
+  INT setMirrorLeftRight(bool flip_vertical);
+
+  /**
    * Waits for next frame to be available, then returns pointer to frame if successful.
    * This function should only be called when the camera is in live capture mode.
    * Since this function will block until the next frame is available, it can be used

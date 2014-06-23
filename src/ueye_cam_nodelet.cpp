@@ -48,7 +48,7 @@
 #include "ueye_cam/ueye_cam_nodelet.hpp"
 #include <cstdlib> // needed for getenv()
 #include <ros/package.h>
-#include <camera_calibration_parsers/parse_ini.h>
+#include <camera_calibration_parsers/parse.h>
 #include <sensor_msgs/fill_image.h>
 #include <sensor_msgs/image_encodings.h>
 
@@ -104,6 +104,8 @@ UEyeCamNodelet::UEyeCamNodelet() :
   cam_params_.ext_trigger_mode = false;
   cam_params_.flash_delay = 0;
   cam_params_.flash_duration = DEFAULT_FLASH_DURATION;
+  cam_params_.flip_upd = false;
+  cam_params_.flip_lr = false;
 };
 
 
@@ -182,7 +184,9 @@ void UEyeCamNodelet::onInit() {
       "Ext Trigger Mode:\t" << cam_params_.ext_trigger_mode << endl <<
       "Auto Frame Rate:\t" << cam_params_.auto_frame_rate << endl <<
       "Frame Rate (Hz):\t" << cam_params_.frame_rate << endl <<
-      "Pixel Clock (MHz):\t" << cam_params_.pixel_clock << endl
+      "Pixel Clock (MHz):\t" << cam_params_.pixel_clock << endl <<
+      "Mirror Image Upside Down:\t" << cam_params_.flip_upd << endl <<
+      "Mirror Image Left Right:\t" << cam_params_.flip_lr << endl
       );
 };
 
@@ -427,6 +431,18 @@ INT UEyeCamNodelet::parseROSParams(ros::NodeHandle& local_nh) {
       }
     }
   }
+  if (local_nh.hasParam("flip_upd")) {
+    local_nh.getParam("flip_upd", cam_params_.flip_upd);
+    if (cam_params_.flip_upd != prevCamParams.flip_upd) {
+      hasNewParams = true;
+    }
+  }
+  if (local_nh.hasParam("flip_lr")) {
+    local_nh.getParam("flip_lr", cam_params_.flip_lr);
+    if (cam_params_.flip_lr != prevCamParams.flip_lr) {
+      hasNewParams = true;
+    }
+  }
 
   if (hasNewParams) {
     // Configure color mode, resolution, and subsampling rate
@@ -464,6 +480,9 @@ INT UEyeCamNodelet::parseROSParams(ros::NodeHandle& local_nh) {
     if ((is_err = setExposure(cam_params_.auto_exposure, cam_params_.exposure)) != IS_SUCCESS) return is_err;
     if ((is_err = setWhiteBalance(cam_params_.auto_white_balance, cam_params_.white_balance_red_offset,
       cam_params_.white_balance_blue_offset)) != IS_SUCCESS) return is_err;
+
+    if ((is_err = setMirrorUpsideDown(cam_params_.flip_upd)) != IS_SUCCESS) return is_err;
+    if ((is_err = setMirrorLeftRight(cam_params_.flip_lr)) != IS_SUCCESS) return is_err;
   }
 
   return is_err;
@@ -584,6 +603,9 @@ void UEyeCamNodelet::configCallback(ueye_cam::UEyeCamConfig& config, uint32_t le
     if (setWhiteBalance(config.auto_white_balance, config.white_balance_red_offset,
       config.white_balance_blue_offset) != IS_SUCCESS) return;
   }
+
+  if (setMirrorUpsideDown(cam_params_.flip_upd) != IS_SUCCESS) return;
+  if (setMirrorLeftRight(cam_params_.flip_lr) != IS_SUCCESS) return;
 
   // NOTE: nothing needs to be done for config.ext_trigger_mode, since frame grabber loop will re-initialize to the right setting
 
@@ -1014,7 +1036,7 @@ void UEyeCamNodelet::loadIntrinsicsFile() {
   }
 
   std::string dummyCamName;
-  if (camera_calibration_parsers::readCalibrationIni(cam_intr_filename_, dummyCamName, ros_cam_info_)) {
+  if (camera_calibration_parsers::readCalibration(cam_intr_filename_, dummyCamName, ros_cam_info_)) {
     NODELET_DEBUG_STREAM("Loaded intrinsics parameters for UEye camera " << cam_name_);
   }
   ros_cam_info_.header.frame_id = "/" + cam_name_;
@@ -1022,7 +1044,7 @@ void UEyeCamNodelet::loadIntrinsicsFile() {
 
 
 bool UEyeCamNodelet::saveIntrinsicsFile() {
-  if (camera_calibration_parsers::writeCalibrationIni(cam_intr_filename_, cam_name_, ros_cam_info_)) {
+  if (camera_calibration_parsers::writeCalibration(cam_intr_filename_, cam_name_, ros_cam_info_)) {
     NODELET_DEBUG_STREAM("Saved intrinsics parameters for UEye camera " << cam_name_ <<
         " to " << cam_intr_filename_);
     return true;
