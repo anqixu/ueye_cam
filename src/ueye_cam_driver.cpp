@@ -810,6 +810,29 @@ INT UEyeCamDriver::setExtTriggerMode() {
   return is_err;
 };
 
+INT UEyeCamDriver::setMirrorUpsideDown(bool flip_horizontal){
+  if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
+
+  INT is_err = IS_SUCCESS;
+  if(flip_horizontal)
+     is_err = is_SetRopEffect(cam_handle_,IS_SET_ROP_MIRROR_UPDOWN,1,0);
+  else
+     is_err = is_SetRopEffect(cam_handle_,IS_SET_ROP_MIRROR_UPDOWN,0,0);
+
+  return is_err;
+}
+
+INT UEyeCamDriver::setMirrorLeftRight(bool flip_vertical){
+  if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
+
+  INT is_err = IS_SUCCESS;
+  if(flip_vertical)
+     is_err = is_SetRopEffect(cam_handle_,IS_SET_ROP_MIRROR_LEFTRIGHT,1,0);
+  else
+     is_err = is_SetRopEffect(cam_handle_,IS_SET_ROP_MIRROR_LEFTRIGHT,0,0);
+
+  return is_err;
+}
 
 INT UEyeCamDriver::setStandbyMode() {
   if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
