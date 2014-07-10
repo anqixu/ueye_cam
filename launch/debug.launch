@@ -1,5 +1,5 @@
 <launch>
-  <node pkg="nodelet" type="nodelet" name="nodelet_manager" args="manager" output="screen" launch-prefix="screen -d -m gdb --args" />
+  <node pkg="nodelet" type="nodelet" name="nodelet_manager" args="manager" output="screen" launch-prefix="gdb -ex run --args" />
   
   <node pkg="nodelet" type="nodelet" name="ueye_cam_nodelet"
         args="load ueye_cam/ueye_cam_nodelet nodelet_manager">
