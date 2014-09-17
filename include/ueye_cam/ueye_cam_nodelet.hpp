@@ -81,6 +81,7 @@ public:
   constexpr static int DEFAULT_PIXEL_CLOCK = 25;
   constexpr static int DEFAULT_FLASH_DURATION = 1000;
 
+  const static std::string DEFAULT_FRAME_NAME;
   const static std::string DEFAULT_CAMERA_NAME;
   const static std::string DEFAULT_CAMERA_TOPIC;
   const static std::string DEFAULT_COLOR_MODE;
@@ -165,6 +166,7 @@ protected:
 
   ros::ServiceServer set_cam_info_srv_;
 
+  std::string frame_name_;
   std::string cam_topic_;
   std::string cam_intr_filename_;
   std::string cam_params_filename_; // should be valid UEye INI file
