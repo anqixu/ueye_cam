@@ -63,6 +63,7 @@ using namespace sensor_msgs::image_encodings;
 namespace ueye_cam {
 
 
+const std::string UEyeCamNodelet::DEFAULT_FRAME_NAME = "camera";
 const std::string UEyeCamNodelet::DEFAULT_CAMERA_NAME = "camera";
 const std::string UEyeCamNodelet::DEFAULT_CAMERA_TOPIC = "image_raw";
 const std::string UEyeCamNodelet::DEFAULT_COLOR_MODE = "";
@@ -129,6 +130,7 @@ void UEyeCamNodelet::onInit() {
 
   // Load camera-agnostic ROS parameters
   local_nh.param<string>("camera_name", cam_name_, DEFAULT_CAMERA_NAME);
+  local_nh.param<string>("frame_name", frame_name_, DEFAULT_FRAME_NAME);
   local_nh.param<string>("camera_topic", cam_topic_, DEFAULT_CAMERA_TOPIC);
   local_nh.param<string>("camera_intrinsics_file", cam_intr_filename_, "");
   local_nh.param<int>("camera_id", cam_id_, ANY_CAMERA);
@@ -455,7 +457,7 @@ INT UEyeCamNodelet::parseROSParams(ros::NodeHandle& local_nh) {
 
     // (Re-)populate ROS image message
     // NOTE: the non-ROS UEye parameters and buffers have been updated by setColorMode, setResolution(), and setSubsampling()
-    ros_image_.header.frame_id = "/" + cam_name_;
+    ros_image_.header.frame_id = "/" + frame_name_;
     ros_image_.height = cam_params_.image_height / (cam_params_.sensor_scaling * cam_params_.subsampling * cam_params_.binning);
     ros_image_.width = cam_params_.image_width / (cam_params_.sensor_scaling * cam_params_.subsampling * cam_params_.binning);
     ros_image_.encoding = cam_params_.color_mode;
@@ -546,7 +548,7 @@ void UEyeCamNodelet::configCallback(ueye_cam::UEyeCamConfig& config, uint32_t le
   // (Re-)populate ROS image message
   // NOTE: the non-ROS UEye parameters and buffers have been updated by setColorMode(),
   // setResolution(), setSubsampling(), setBinning(), and setSensorScaling()
-  ros_image_.header.frame_id = "/" + cam_name_;
+  ros_image_.header.frame_id = "/" + frame_name_;
   ros_image_.height = config.image_height / (config.sensor_scaling * config.subsampling * config.binning);
   ros_image_.width = config.image_width / (config.sensor_scaling * config.subsampling * config.binning);
   ros_image_.encoding = config.color_mode;
@@ -836,7 +838,7 @@ INT UEyeCamNodelet::queryCamParams() {
 
   // Populate ROS image message
   // NOTE: the non-ROS UEye parameters and buffers have been updated by setColorMode, setResolution(), and setSubsampling()
-  ros_image_.header.frame_id = "/" + cam_name_;
+  ros_image_.header.frame_id = "/" + frame_name_;
   ros_image_.height = cam_params_.image_height /
       (cam_params_.sensor_scaling * cam_params_.subsampling * cam_params_.binning);
   ros_image_.width = cam_params_.image_width /
@@ -886,7 +888,7 @@ INT UEyeCamNodelet::disconnectCam() {
 bool UEyeCamNodelet::setCamInfo(sensor_msgs::SetCameraInfo::Request& req,
     sensor_msgs::SetCameraInfo::Response& rsp) {
   ros_cam_info_ = req.camera_info;
-  ros_cam_info_.header.frame_id = "/" + cam_name_;
+  ros_cam_info_.header.frame_id = "/" + frame_name_;
   rsp.success = saveIntrinsicsFile();
   rsp.status_message = (rsp.success) ? "successfully wrote to file" : "failed to write to file";
   return true;
@@ -1023,6 +1025,7 @@ void UEyeCamNodelet::frameGrabLoop() {
         }
         ros_image_.header.stamp = ros_cam_info_.header.stamp = ros::Time::now();
         ros_image_.header.seq = ros_cam_info_.header.seq = ros_frame_count_++;
+        ros_image_.header.frame_id = ros_cam_info_.header.frame_id;
 
         if (!frame_grab_alive_ || !ros::ok()) break;
         ros_cam_pub_.publish(ros_image_, ros_cam_info_);
@@ -1058,11 +1061,10 @@ void UEyeCamNodelet::loadIntrinsicsFile() {
     cam_intr_filename_ = string(getenv("HOME")) + "/.ros/camera_info/" + cam_name_ + ".yaml";
   }
 
-  std::string dummyCamName;
-  if (camera_calibration_parsers::readCalibration(cam_intr_filename_, dummyCamName, ros_cam_info_)) {
+  if (camera_calibration_parsers::readCalibration(cam_intr_filename_, frame_name_, ros_cam_info_)) {
     NODELET_DEBUG_STREAM("Loaded intrinsics parameters for UEye camera " << cam_name_);
   }
-  ros_cam_info_.header.frame_id = "/" + cam_name_;
+  ros_cam_info_.header.frame_id = frame_name_;
 };
 
 
