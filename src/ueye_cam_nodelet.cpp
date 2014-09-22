@@ -1061,10 +1061,10 @@ void UEyeCamNodelet::loadIntrinsicsFile() {
     cam_intr_filename_ = string(getenv("HOME")) + "/.ros/camera_info/" + cam_name_ + ".yaml";
   }
 
-  if (camera_calibration_parsers::readCalibration(cam_intr_filename_, frame_name_, ros_cam_info_)) {
+  if (camera_calibration_parsers::readCalibration(cam_intr_filename_, cam_name_, ros_cam_info_)) {
     NODELET_DEBUG_STREAM("Loaded intrinsics parameters for UEye camera " << cam_name_);
   }
-  ros_cam_info_.header.frame_id = frame_name_;
+  ros_cam_info_.header.frame_id = "/" + frame_name_;
 };
 
 
