@@ -4,9 +4,17 @@ project(ueye_cam)
 
 set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS} -g -Wall") # For G++ <4.7; also appears to be supported in G++ 4.7+ as alias to c++11
 
-set(UEYE_INCLUDE_PATH /usr/include)
-set(UEYE_LIBRARY_PATH /usr/lib)
-set(UEYE_LIBRARY ueye_api)
+#set(UEYE_LIBRARY_PATH /usr/lib)
+find_library(UEYE_LIBRARY ueye_api)
+if(NOT UEYE_LIBRARY)
+  message(STATUS "libueye_api was not found in system's library path")
+  include(cmake_modules/DownloadUEyeDrivers.cmake)
+  download_ueye_drivers(UEYE_LIBRARY UEYE_INCLUDE_DIR) 
+  message(STATUS "libueye_api library: ${UEYE_LIBRARY}")
+  message(STATUS "libueye_api include: ${UEYE_INCLUDE_DIR}")
+  include_directories(${UEYE_INCLUDE_DIR})  
+endif()
+
 set(UEYECAM_NODELET_NAME ueye_cam_nodelet)
 set(UEYECAM_LIB_NAME ueye_wrapper)
 
@@ -54,7 +62,7 @@ catkin_package(
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
-  ${UEYE_INCLUDE_PATH}
+  ${UEYE_INCLUDE_DIR}
   )
 
 

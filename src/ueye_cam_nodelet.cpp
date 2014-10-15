@@ -1001,7 +1001,7 @@ void UEyeCamNodelet::frameGrabLoop() {
         ros_cam_info_.height = cam_params_.image_height / cam_sensor_scaling_rate_ / cam_subsampling_rate_ / cam_binning_rate_;
 
         // Check if content is contiguous
-        unsigned int expected_row_stride = ros_cam_info_.width * bits_per_pixel_ / 8;
+        int expected_row_stride = ros_cam_info_.width * bits_per_pixel_ / 8;
         if (expected_row_stride < cam_buffer_pitch_) {
           NODELET_ERROR_STREAM("Camera buffer pitch (" << cam_buffer_pitch_ << ") is smaller than expected: " <<
             "width (" << ros_cam_info_.width << ") * bytes per pixel (" << bits_per_pixel_/8 << ")");
@@ -1015,7 +1015,7 @@ void UEyeCamNodelet::frameGrabLoop() {
           // Each row contains extra content according to cam_buffer_pitch_, so must copy out each row independently
           std::vector<unsigned char>::iterator ros_image_it = ros_image_.data.begin();
           char* cam_buffer_ptr = cam_buffer_;
-          for (int row = 0; row < ros_cam_info_.height; row++) {
+          for (unsigned int row = 0; row < ros_cam_info_.height; row++) {
             ros_image_it = copy(cam_buffer_ptr, cam_buffer_ptr + expected_row_stride, ros_image_it);
             cam_buffer_ptr += expected_row_stride;
           }
