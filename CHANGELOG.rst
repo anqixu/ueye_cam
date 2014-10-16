@@ -2,8 +2,8 @@
 Changelog for package ueye_cam
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.0.2 (2014-10-16)
+------------------
 * switched from rosdep 'opencv2' to 'vision_opencv'
 * Contributors: Anqi Xu
 
