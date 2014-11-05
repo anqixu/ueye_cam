@@ -149,8 +149,8 @@ void UEyeCamNodelet::onInit() {
   f = bind(&UEyeCamNodelet::configCallback, this, _1, _2);
 
   // Setup publishers, subscribers, and services
-  ros_cam_pub_ = it.advertiseCamera("/" + cam_name_ + "/" + cam_topic_, 1);
-  set_cam_info_srv_ = nh.advertiseService("/" + cam_name_ + "/set_camera_info",
+  ros_cam_pub_ = it.advertiseCamera(cam_name_ + "/" + cam_topic_, 1);
+  set_cam_info_srv_ = nh.advertiseService(cam_name_ + "/set_camera_info",
       &UEyeCamNodelet::setCamInfo, this);
 
   // Initiate camera and start capture
