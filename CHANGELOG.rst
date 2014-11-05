@@ -2,6 +2,12 @@
 Changelog for package ueye_cam
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Dependency switch from 'vision_opencv' meta-package to 'cv_bridge' package
+* trim '/' prefix of topic and service to change to relative name-space
+* Contributors: Anqi Xu, Yutaka Kondo
+
 1.0.2 (2014-10-16)
 ------------------
 * switched from rosdep 'opencv2' to 'vision_opencv'
