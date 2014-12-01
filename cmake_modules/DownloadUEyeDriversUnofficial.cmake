@@ -16,6 +16,9 @@ function(download_ueye_drivers UEYE_LIBRARY_VAR UEYE_INCLUDE_DIR_VAR)
     endif()
     include(cmake_modules/TargetArch.cmake)
     target_architecture(UEYE_ARCH)
+    if (UEYE_ARCH STREQUAL "x86_64")
+      set (UEYE_ARCH "amd64")
+    endif ()
     
     # Set download path (credits due to ueye ROS package developers)
     set (UEYE_DRIVER_DIR ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_SHARE_DESTINATION}/3rdparty)
@@ -49,6 +52,10 @@ function(download_ueye_drivers UEYE_LIBRARY_VAR UEYE_INCLUDE_DIR_VAR)
     execute_process(
       COMMAND ${CMAKE_COMMAND} -E tar xzf ${UEYE_DRIVER_DIR}/${UEYE_ARCHIVE}
       WORKING_DIRECTORY ${UEYE_DRIVER_DIR}
+    )
+    file(
+      GENERATE OUTPUT ${UEYE_DRIVER_DIR}/${UEYE_ARCH}/uEye.h
+      INPUT ${UEYE_DRIVER_DIR}/${UEYE_ARCH}/ueye.h
     )
     
     # Re-direct include and linker paths
