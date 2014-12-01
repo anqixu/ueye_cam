@@ -2,6 +2,23 @@
 # https://bitbucket.org/kmhallen/ueye/src/4d8e78311e9d1ba4db3327b89862c3fa3ae602d1/CMakeLists.txt?at=default
 
 function(download_ueye_drivers UEYE_LIBRARY_VAR UEYE_INCLUDE_DIR_VAR)
+  message(WARNING "!!!!!!!!!!!!!!!!!!!!")
+  message(WARNING "!!!!!!!!!!!!!!!!!!!!")
+  message(WARNING "!!!!! WARNING  !!!!!")
+  message(WARNING "!!!!!!!!!!!!!!!!!!!!")
+  message(WARNING "!!!!!!!!!!!!!!!!!!!!")
+  message(WARNING " ")
+  message(WARNING "The official IDS uEye drivers were not detected on your machine. A temporary version of the header/library will be downloaded, to ensure that this package builds.")
+  message(WARNING " ")
+  message(WARNING "Nevertheless, you (or a system administrator) MUST still download and install the official IDS uEye drivers. Also make sure that the IDS daemon (ueyeusbdrc) is running.")
+  message(WARNING "(http://en.ids-imaging.com/download-ueye.html)")
+  message(WARNING " ")
+  message(WARNING "!!!!!!!!!!!!!!!!!!!!")
+  message(WARNING "!!!!!!!!!!!!!!!!!!!!")
+  message(WARNING "!!!!! WARNING  !!!!!")
+  message(WARNING "!!!!!!!!!!!!!!!!!!!!")
+  message(WARNING "!!!!!!!!!!!!!!!!!!!!")
+
   include(CheckIncludeFileCXX)
   check_include_file_cxx("uEye.h" FOUND_UEYE_H)
   if (FOUND_UEYE_H)
