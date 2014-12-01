@@ -8,11 +8,12 @@ set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS} -g -Wall") # For G++ <4.7; al
 find_library(UEYE_LIBRARY ueye_api)
 if(NOT UEYE_LIBRARY)
   message(STATUS "libueye_api was not found in system's library path")
-  include(cmake_modules/DownloadUEyeDrivers.cmake)
+  #include(cmake_modules/DownloadUEyeDrivers.cmake)
+  include(cmake_modules/DownloadUEyeDriversUnofficial.cmake)
   download_ueye_drivers(UEYE_LIBRARY UEYE_INCLUDE_DIR) 
   message(STATUS "libueye_api library: ${UEYE_LIBRARY}")
   message(STATUS "libueye_api include: ${UEYE_INCLUDE_DIR}")
-  include_directories(${UEYE_INCLUDE_DIR})  
+  include_directories(${UEYE_INCLUDE_DIR})
 endif()
 
 set(UEYECAM_NODELET_NAME ueye_cam_nodelet)
@@ -58,6 +59,7 @@ catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${UEYECAM_LIB_NAME} ${UEYECAM_NODELET_NAME}
   CATKIN_DEPENDS roscpp nodelet dynamic_reconfigure cv_bridge image_transport sensor_msgs camera_calibration_parsers camera_info_manager
+  DEPENDS OpenCV
   )
 
 include_directories(
