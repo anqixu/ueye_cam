@@ -97,7 +97,8 @@ INT UEyeCamDriver::connectCam(int new_cam_ID) {
     return is_err;
   } else if (numCameras < 1) {
     ERROR_STREAM("No UEye cameras are connected\n");
-    ERROR_STREAM("Hint: please ensure that the official IDS uEye drivers installed (http://en.ids-imaging.com/download-ueye.html), and that the IDS camera daemon (/etc/init.d/ueyeusbdrc) is running.");
+    ERROR_STREAM("Hint 1: if you installed ros-*-ueye-cam via apt, you will still need to install the official IDS uEye drivers: http://en.ids-imaging.com/download-ueye.html");
+    ERROR_STREAM("Hint 2: make sure that the IDS camera daemon (/etc/init.d/ueyeusbdrc) is running\n");
     return IS_NO_SUCCESS;
   } // NOTE: previously checked if ID < numCameras, but turns out that ID can be arbitrary
 
