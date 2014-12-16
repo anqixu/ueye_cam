@@ -6,15 +6,22 @@ set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS} -g -Wall") # For G++ <4.7; al
 
 #set(UEYE_LIBRARY_PATH /usr/lib)
 find_library(UEYE_LIBRARY ueye_api)
+set(USE_UNOFFICIAL_UEYE_DRIVERS FALSE)
+set(UNOFFICIAL_UEYE_DRIVER_LIB "")
 if(NOT UEYE_LIBRARY)
   message(STATUS "libueye_api was not found in system's library path")
   #include(cmake_modules/DownloadUEyeDrivers.cmake)
   include(cmake_modules/DownloadUEyeDriversUnofficial.cmake)
-  message(STATUS "- CATKIN_DEVEL_PREFIX: ${CATKIN_DEVEL_PREFIX}")
-  download_ueye_drivers(UEYE_LIBRARY UEYE_INCLUDE_DIR ${CATKIN_DEVEL_PREFIX})
+  if(CATKIN_DEVEL_PREFIX)
+    set(UEYE_DRIVER_DIR ${CATKIN_DEVEL_PREFIX})
+  else()
+    set(UEYE_DRIVER_DIR ${CMAKE_INSTALL_PREFIX})
+  endif()
+  download_ueye_drivers(UEYE_LIBRARY UEYE_INCLUDE_DIR ${UEYE_DRIVER_DIR})
   message(STATUS "libueye_api library: ${UEYE_LIBRARY}")
   message(STATUS "libueye_api include: ${UEYE_INCLUDE_DIR}")
-  include_directories(${UEYE_INCLUDE_DIR})
+  set(USE_UNOFFICIAL_UEYE_DRIVERS TRUE)
+  set(UNOFFICIAL_UEYE_DRIVER_LIB ${UEYE_LIBRARY})
 endif()
 
 set(UEYECAM_NODELET_NAME ueye_cam_nodelet)
@@ -58,7 +65,7 @@ generate_dynamic_reconfigure_options(
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES ${UEYECAM_LIB_NAME} ${UEYECAM_NODELET_NAME}
+  LIBRARIES ${UEYECAM_LIB_NAME} ${UEYECAM_NODELET_NAME} ${UNOFFICIAL_UEYE_DRIVER_LIB}
   CATKIN_DEPENDS roscpp nodelet dynamic_reconfigure cv_bridge image_transport sensor_msgs camera_calibration_parsers camera_info_manager
   DEPENDS OpenCV
   )
@@ -77,7 +84,7 @@ add_library(${UEYECAM_NODELET_NAME} ${UEYECAM_NODELET_SOURCES} ${UEYECAM_NODELET
 target_link_libraries(${UEYECAM_NODELET_NAME} ${catkin_LIBRARIES} ${UEYECAM_LIB_NAME})
 add_dependencies(${UEYECAM_NODELET_NAME} ${PROJECT_NAME}_gencfg)
 
-install(TARGETS ${UEYECAM_LIB_NAME} ${UEYECAM_NODELET_NAME}
+install(TARGETS ${UEYECAM_LIB_NAME} ${UEYECAM_NODELET_NAME} ${UNOFFICIAL_UEYE_DRIVER_LIB}
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -90,4 +97,3 @@ install(FILES nodelet_plugins.xml
 install(DIRECTORY launch/
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
   )
-
