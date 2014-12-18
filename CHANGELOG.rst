@@ -2,6 +2,11 @@
 Changelog for package ueye_cam
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* continuing to trying to fix errors on ROS buildfarm
+* Contributors: Anqi Xu
+
 1.0.5 (2014-12-11)
 ------------------
 * fixed/improved unofficial driver install; added warning messages during compile- & run-time to note that unofficially-installed drivers will allow ueye_cam to be compiled, but will not detect any cameras during runtime (since IDS camera daemon is not packaged in unofficial driver download)
