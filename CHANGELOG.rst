@@ -2,8 +2,8 @@
 Changelog for package ueye_cam
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.0.7 (2014-12-22)
+------------------
 * continuing to address issues on ROS bin buildfarm
 * Contributors: Anqi Xu
 
