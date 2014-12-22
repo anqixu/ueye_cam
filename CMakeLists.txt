@@ -4,6 +4,18 @@ project(ueye_cam)
 
 set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS} -g -Wall") # For G++ <4.7; also appears to be supported in G++ 4.7+ as alias to c++11
 
+find_package(catkin REQUIRED COMPONENTS
+  roscpp
+  nodelet
+  dynamic_reconfigure
+  cv_bridge
+  image_transport
+  sensor_msgs
+  camera_calibration_parsers
+  camera_info_manager
+  )
+catkin_destinations() # define ${CATKIN_PACKAGE_SHARE_DESTINATION}
+
 #set(UEYE_LIBRARY_PATH /usr/lib)
 find_library(UEYE_LIBRARY ueye_api)
 set(USE_UNOFFICIAL_UEYE_DRIVERS FALSE)
@@ -11,10 +23,12 @@ if(NOT UEYE_LIBRARY)
   message(STATUS "libueye_api was not found in system's library path")
   #include(cmake_modules/DownloadUEyeDrivers.cmake)
   include(cmake_modules/DownloadUEyeDriversUnofficial.cmake)
-  if(CATKIN_DEVEL_PREFIX)
-    set(UEYE_DRIVER_DIR ${CATKIN_DEVEL_PREFIX})
+  set(UEYE_DRIVER_DIR ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_SHARE_DESTINATION}/)
+  if(UEYE_DRIVER_DIR)
+    message(STATUS "Set UEYE_DRIVER_DIR to: ${UEYE_DRIVER_DIR}")
   else()
-    set(UEYE_DRIVER_DIR ${CMAKE_INSTALL_PREFIX})
+    set(UEYE_DRIVER_DIR ${CMAKE_CURRENT_BINARY_DIR})
+    message(STATUS "Failed to set UEYE_DRIVER_DIR to: CATKIN_DEVEL_PREFIX/CATKIN_PACKAGE_SHARE_DESTINATION/, defaulting to CMAKE_CURRENT_BINARY_DIR: ${UEYE_DRIVER_DIR}")
   endif()
   download_ueye_drivers(UEYE_LIBRARY UEYE_INCLUDE_DIR ${UEYE_DRIVER_DIR})
   message(STATUS "libueye_api library: ${UEYE_LIBRARY}")
@@ -45,17 +59,6 @@ set(UEYECAM_NODELET_SOURCES
 set(UEYECAM_NODELET_HEADERS
   include/ueye_cam/ueye_cam_nodelet.hpp
 )
-
-find_package(catkin REQUIRED COMPONENTS
-  roscpp
-  nodelet
-  dynamic_reconfigure
-  cv_bridge
-  image_transport
-  sensor_msgs
-  camera_calibration_parsers
-  camera_info_manager
-  )
 
 generate_dynamic_reconfigure_options(
   cfg/UEyeCam.cfg
