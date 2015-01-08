@@ -1,3 +1,5 @@
+cmake_minimum_required(VERSION 2.8.3)
+
 # Script based on:
 # https://bitbucket.org/kmhallen/ueye/src/4d8e78311e9d1ba4db3327b89862c3fa3ae602d1/CMakeLists.txt?at=default
 
@@ -54,10 +56,16 @@ function(download_ueye_drivers UEYE_LIBRARY_VAR UEYE_INCLUDE_DIR_VAR UEYE_DRIVER
       COMMAND ${CMAKE_COMMAND} -E tar xzf ${UEYE_DRIVER_DIR}/${UEYE_ARCHIVE}
       WORKING_DIRECTORY ${UEYE_DRIVER_DIR}
     )
-    file(
-      GENERATE OUTPUT ${UEYE_DRIVER_DIR}/${UEYE_ARCH}/uEye.h
-      INPUT ${UEYE_DRIVER_DIR}/${UEYE_ARCH}/ueye.h
+
+    configure_file(
+       ${UEYE_DRIVER_DIR}/${UEYE_ARCH}/ueye.h
+       ${UEYE_DRIVER_DIR}/${UEYE_ARCH}/uEye.h
+       COPYONLY
     )
+    #file(
+      #GENERATE OUTPUT 
+      #INPUT ${UEYE_DRIVER_DIR}/${UEYE_ARCH}/ueye.h
+    #)
     
     # Re-direct include and linker paths
     set(${UEYE_LIBRARY_VAR} ${UEYE_DRIVER_DIR}/${UEYE_ARCH}/libueye_api.so PARENT_SCOPE)
