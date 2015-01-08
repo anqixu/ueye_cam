@@ -2,6 +2,11 @@
 Changelog for package ueye_cam
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* switched from cmake's file(GENERATE ...) to execute_command(cp ...), to accommodate cmake 2.8.x on Saucy
+* Contributors: Anqi Xu
+
 1.0.7 (2014-12-22)
 ------------------
 * continuing to address issues on ROS bin buildfarm
