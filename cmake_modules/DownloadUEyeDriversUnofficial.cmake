@@ -54,9 +54,9 @@ function(download_ueye_drivers UEYE_LIBRARY_VAR UEYE_INCLUDE_DIR_VAR UEYE_DRIVER
       COMMAND ${CMAKE_COMMAND} -E tar xzf ${UEYE_DRIVER_DIR}/${UEYE_ARCHIVE}
       WORKING_DIRECTORY ${UEYE_DRIVER_DIR}
     )
-    file(
-      GENERATE OUTPUT ${UEYE_DRIVER_DIR}/${UEYE_ARCH}/uEye.h
-      INPUT ${UEYE_DRIVER_DIR}/${UEYE_ARCH}/ueye.h
+    execute_process(
+      COMMAND cp ${UEYE_DRIVER_DIR}/${UEYE_ARCH}/ueye.h ${UEYE_DRIVER_DIR}/${UEYE_ARCH}/uEye.h
+      WORKING_DIRECTORY ${UEYE_DRIVER_DIR}
     )
     
     # Re-direct include and linker paths
