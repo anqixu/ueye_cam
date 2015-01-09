@@ -1,3 +1,5 @@
+cmake_minimum_required(VERSION 2.8.3)
+
 # Script derived from:
 # https://github.com/ros-drivers/pointgrey_camera_driver/blob/master/pointgrey_camera_driver/cmake/DownloadFlyCap.cmake
 
