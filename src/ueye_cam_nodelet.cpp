@@ -750,15 +750,20 @@ INT UEyeCamNodelet::queryCamParams() {
   cam_params_.blue_gain = is_SetHardwareGain(cam_handle_, IS_GET_BLUE_GAIN,
       IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
 
-  query = is_SetGainBoost(cam_handle_, IS_GET_GAINBOOST);
-  if (query == IS_SET_GAINBOOST_ON) {
-    cam_params_.gain_boost = true;
-  } else if (query == IS_SET_GAINBOOST_OFF) {
-    cam_params_.gain_boost = false;
+  query = is_SetGainBoost(cam_handle_, IS_GET_SUPPORTED_GAINBOOST);
+  if(query == IS_SET_GAINBOOST_ON) {
+    query = is_SetGainBoost(cam_handle_, IS_GET_GAINBOOST);
+    if (query == IS_SET_GAINBOOST_ON) {
+      cam_params_.gain_boost = true;
+    } else if (query == IS_SET_GAINBOOST_OFF) {
+      cam_params_.gain_boost = false;
+    } else {
+      NODELET_ERROR_STREAM("Failed to query gain boost for UEye camera '" <<
+          cam_name_ << "' (" << err2str(query) << ")");
+      return query;
+    }
   } else {
-    NODELET_ERROR_STREAM("Failed to query gain boost for UEye camera '" <<
-        cam_name_ << "' (" << err2str(query) << ")");
-    return query;
+    cam_params_.gain_boost = false;
   }
 
   if ((is_err = is_SetAutoParameter(cam_handle_,
