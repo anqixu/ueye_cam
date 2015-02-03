@@ -683,16 +683,33 @@ INT UEyeCamDriver::setPixelClockRate(INT& clock_rate_mhz) {
 
   INT is_err = IS_SUCCESS;
 
-  UINT pixelClockRange[3];
-  ZeroMemory(pixelClockRange, sizeof(pixelClockRange));
-
-  if ((is_err = is_PixelClock(cam_handle_, IS_PIXELCLOCK_CMD_GET_RANGE,
-      (void*) pixelClockRange, sizeof(pixelClockRange))) != IS_SUCCESS) {
-    ERROR_STREAM("Failed to query pixel clock range from UEye camera '" <<
-        cam_name_ << "'");
+  UINT pixelClockList[150];  // No camera has more than 150 different pixel clocks (uEye manual)
+  UINT numberOfSupportedPixelClocks = 0;
+  if ((is_err = is_PixelClock(cam_handle_, IS_PIXELCLOCK_CMD_GET_NUMBER,
+      (void*) &numberOfSupportedPixelClocks, sizeof(numberOfSupportedPixelClocks))) != IS_SUCCESS) {
+    ERROR_STREAM("Failed to query number of supported pixel clocks from UEye camera '" << cam_name_ << "'");
     return is_err;
   }
-  CAP(clock_rate_mhz, (int) pixelClockRange[0], (int) pixelClockRange[1]);
+  if(numberOfSupportedPixelClocks > 0) {
+    ZeroMemory(pixelClockList, sizeof(pixelClockList));
+    if((is_err = is_PixelClock(cam_handle_, IS_PIXELCLOCK_CMD_GET_LIST,
+       (void*) pixelClockList, numberOfSupportedPixelClocks * sizeof(int))) != IS_SUCCESS) {
+      ERROR_STREAM("Failed to query list of supported pixel clocks from UEye camera '" << cam_name_ << "'");
+      return is_err;
+    }
+  }
+  int minPixelClock = (int) pixelClockList[0];
+  int maxPixelClock = (int) pixelClockList[numberOfSupportedPixelClocks-1];
+  CAP(clock_rate_mhz, minPixelClock, maxPixelClock);
+
+  // As list is sorted smallest to largest...
+  for(UINT i = 0; i < numberOfSupportedPixelClocks; i++) {
+    if(clock_rate_mhz <= (int) pixelClockList[i]) {
+      clock_rate_mhz = pixelClockList[i];  // ...get the closest-larger-or-equal from the list
+      break;
+    }
+  }
+
   if ((is_err = is_PixelClock(cam_handle_, IS_PIXELCLOCK_CMD_SET,
       (void*) &(clock_rate_mhz), sizeof(clock_rate_mhz))) != IS_SUCCESS) {
     ERROR_STREAM("Failed to set pixel clock to " << clock_rate_mhz <<
