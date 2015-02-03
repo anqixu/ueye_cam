@@ -2,8 +2,8 @@
 Changelog for package ueye_cam
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.0.9 (2015-02-03)
+------------------
 * fixed lagged changes to flip_upd and flip_lr via rqt_reconfigure
 * Support discrete-only pixelclocks cameras
 * Ask if gainboost is supported first
