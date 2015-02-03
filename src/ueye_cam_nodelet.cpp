@@ -606,8 +606,12 @@ void UEyeCamNodelet::configCallback(ueye_cam::UEyeCamConfig& config, uint32_t le
       config.white_balance_blue_offset) != IS_SUCCESS) return;
   }
 
-  if (setMirrorUpsideDown(cam_params_.flip_upd) != IS_SUCCESS) return;
-  if (setMirrorLeftRight(cam_params_.flip_lr) != IS_SUCCESS) return;
+  if (config.flip_upd != cam_params_.flip_upd) {
+    if (setMirrorUpsideDown(config.flip_upd) != IS_SUCCESS) return;
+  }
+  if (config.flip_lr != cam_params_.flip_lr) {
+    if (setMirrorLeftRight(config.flip_lr) != IS_SUCCESS) return;
+  }
 
   // NOTE: nothing needs to be done for config.ext_trigger_mode, since frame grabber loop will re-initialize to the right setting
 
