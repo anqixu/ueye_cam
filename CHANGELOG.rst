@@ -2,6 +2,14 @@
 Changelog for package ueye_cam
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* fixed lagged changes to flip_upd and flip_lr via rqt_reconfigure
+* Support discrete-only pixelclocks cameras
+* Ask if gainboost is supported first
+* Switched to jbohren's version of the file(GENERATE...) fix
+* Contributors: Anqi Xu, Fran Real, Jonathan Bohren
+
 1.0.8 (2015-01-08)
 ------------------
 * switched from cmake's file(GENERATE ...) to execute_command(cp ...), to accommodate cmake 2.8.x on Saucy
