@@ -22,6 +22,8 @@ function(download_ueye_drivers UEYE_LIBRARY_VAR UEYE_INCLUDE_DIR_VAR UEYE_DRIVER
     target_architecture(UEYE_ARCH)
     if (UEYE_ARCH STREQUAL "x86_64")
       set (UEYE_ARCH "amd64")
+    elseif (UEYE_ARCH STREQUAL "armv7")
+      set (UEYE_ARCH "arm")
     endif ()
     
     # Set download path (credits due to ueye ROS package developers)
