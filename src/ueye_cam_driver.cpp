@@ -124,9 +124,20 @@ INT UEyeCamDriver::connectCam(int new_cam_ID) {
 
   // Set display mode to Device Independent Bitmap (DIB)
   is_err = is_SetDisplayMode(cam_handle_, IS_SET_DM_DIB);
+  if (is_err != IS_SUCCESS) {
+    ERROR_STREAM("Camera " << cam_id_ <<
+      " does not support Device Independent Bitmap mode;" <<
+      " driver not compatible with OpenGL/DirectX modes (" << err2str(is_err) << ")");
+    return is_err;
+  }
 
   // Fetch sensor parameters
   is_err = is_GetSensorInfo(cam_handle_, &cam_sensor_info_);
+  if (is_err != IS_SUCCESS) {
+    ERROR_STREAM("Could not poll sensor information for UEye camera ID " << cam_id_ <<
+      " (" << err2str(is_err) << ")");
+    return is_err;
+  }
 
   // Initialize local camera frame buffer
   reallocateCamBuffer();
@@ -612,7 +623,7 @@ INT UEyeCamDriver::setWhiteBalance(bool& auto_white_balance, INT& red_offset,
         &pval1, &pval2)) != IS_SUCCESS) {
       WARN_STREAM("Failed to set white balance red/blue offsets to " <<
           red_offset << " / " << blue_offset <<
-          " for UEye camera '" << cam_name_ << "'");
+          " for UEye camera '" << cam_name_ << "' (" << err2str(is_err) << ")");
     }
   }
 
@@ -657,7 +668,8 @@ INT UEyeCamDriver::setFrameRate(bool& auto_frame_rate, double& frame_rate_hz) {
     // Make sure that user-requested frame rate is achievable
     if ((is_err = is_GetFrameTimeRange(cam_handle_, &minFrameTime,
         &maxFrameTime, &intervalFrameTime)) != IS_SUCCESS) {
-      ERROR_STREAM("Failed to query valid frame rate range from UEye camera '" << cam_name_ << "'");
+      ERROR_STREAM("Failed to query valid frame rate range from UEye camera '" << cam_name_ <<
+         "' (" << err2str(is_err) << ")");
       return is_err;
     }
     CAP(frame_rate_hz, 1.0/maxFrameTime, 1.0/minFrameTime);
@@ -665,7 +677,7 @@ INT UEyeCamDriver::setFrameRate(bool& auto_frame_rate, double& frame_rate_hz) {
     // Update frame rate
     if ((is_err = is_SetFrameRate(cam_handle_, frame_rate_hz, &newFrameRate)) != IS_SUCCESS) {
       ERROR_STREAM("Failed to set frame rate to " << frame_rate_hz <<
-          " MHz for UEye camera '" << cam_name_ << "'");
+          " MHz for UEye camera '" << cam_name_ << "' (" << err2str(is_err) << ")");
       return is_err;
     } else if (frame_rate_hz != newFrameRate) {
       frame_rate_hz = newFrameRate;
@@ -687,14 +699,16 @@ INT UEyeCamDriver::setPixelClockRate(INT& clock_rate_mhz) {
   UINT numberOfSupportedPixelClocks = 0;
   if ((is_err = is_PixelClock(cam_handle_, IS_PIXELCLOCK_CMD_GET_NUMBER,
       (void*) &numberOfSupportedPixelClocks, sizeof(numberOfSupportedPixelClocks))) != IS_SUCCESS) {
-    ERROR_STREAM("Failed to query number of supported pixel clocks from UEye camera '" << cam_name_ << "'");
+    ERROR_STREAM("Failed to query number of supported pixel clocks from UEye camera '" << cam_name_ <<
+      "' (" << err2str(is_err) << ")");
     return is_err;
   }
   if(numberOfSupportedPixelClocks > 0) {
     ZeroMemory(pixelClockList, sizeof(pixelClockList));
     if((is_err = is_PixelClock(cam_handle_, IS_PIXELCLOCK_CMD_GET_LIST,
        (void*) pixelClockList, numberOfSupportedPixelClocks * sizeof(int))) != IS_SUCCESS) {
-      ERROR_STREAM("Failed to query list of supported pixel clocks from UEye camera '" << cam_name_ << "'");
+      ERROR_STREAM("Failed to query list of supported pixel clocks from UEye camera '" << cam_name_ <<
+      "' (" << err2str(is_err) << ")");
       return is_err;
     }
   }
@@ -713,7 +727,7 @@ INT UEyeCamDriver::setPixelClockRate(INT& clock_rate_mhz) {
   if ((is_err = is_PixelClock(cam_handle_, IS_PIXELCLOCK_CMD_SET,
       (void*) &(clock_rate_mhz), sizeof(clock_rate_mhz))) != IS_SUCCESS) {
     ERROR_STREAM("Failed to set pixel clock to " << clock_rate_mhz <<
-        "MHz for UEye camera '" << cam_name_ << "'");
+        "MHz for UEye camera '" << cam_name_ << "' (" << err2str(is_err) << ")");
     return is_err;
   }
 
