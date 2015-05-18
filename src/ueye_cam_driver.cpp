@@ -140,7 +140,7 @@ INT UEyeCamDriver::connectCam(int new_cam_ID) {
   }
 
   // Initialize local camera frame buffer
-  reallocateCamBuffer();
+  is_err = reallocateCamBuffer();
 
   return is_err;
 };

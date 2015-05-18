@@ -448,6 +448,7 @@ INT UEyeCamNodelet::parseROSParams(ros::NodeHandle& local_nh) {
 
   if (hasNewParams) {
     // Configure color mode, resolution, and subsampling rate
+    // NOTE: this batch of configurations are mandatory, to ensure proper allocation of local frame buffer
     if ((is_err = setColorMode(cam_params_.color_mode, true)) != IS_SUCCESS) return is_err;
     if ((is_err = setResolution(cam_params_.image_width, cam_params_.image_height,
         cam_params_.image_left, cam_params_.image_top, false)) != IS_SUCCESS) return is_err;
@@ -474,17 +475,21 @@ INT UEyeCamNodelet::parseROSParams(ros::NodeHandle& local_nh) {
     }
 
     // Configure camera sensor parameters
+    // NOTE: failing to configure certain parameters may or may not cause camera to fail;
+    //       cuurently their failures are treated as non-critical
+    //#define noop return is_err
+    #define noop (void)0
     if ((is_err = setGain(cam_params_.auto_gain, cam_params_.master_gain,
         cam_params_.red_gain, cam_params_.green_gain,
-        cam_params_.blue_gain, cam_params_.gain_boost)) != IS_SUCCESS) return is_err;
+        cam_params_.blue_gain, cam_params_.gain_boost)) != IS_SUCCESS) noop;
     if ((is_err = setPixelClockRate(cam_params_.pixel_clock)) != IS_SUCCESS) return is_err;
     if ((is_err = setFrameRate(cam_params_.auto_frame_rate, cam_params_.frame_rate)) != IS_SUCCESS) return is_err;
-    if ((is_err = setExposure(cam_params_.auto_exposure, cam_params_.exposure)) != IS_SUCCESS) return is_err;
+    if ((is_err = setExposure(cam_params_.auto_exposure, cam_params_.exposure)) != IS_SUCCESS) noop;
     if ((is_err = setWhiteBalance(cam_params_.auto_white_balance, cam_params_.white_balance_red_offset,
-      cam_params_.white_balance_blue_offset)) != IS_SUCCESS) return is_err;
-
-    if ((is_err = setMirrorUpsideDown(cam_params_.flip_upd)) != IS_SUCCESS) return is_err;
-    if ((is_err = setMirrorLeftRight(cam_params_.flip_lr)) != IS_SUCCESS) return is_err;
+      cam_params_.white_balance_blue_offset)) != IS_SUCCESS) noop;
+    if ((is_err = setMirrorUpsideDown(cam_params_.flip_upd)) != IS_SUCCESS) noop;
+    if ((is_err = setMirrorLeftRight(cam_params_.flip_lr)) != IS_SUCCESS) noop;
+    #undef noop
   }
 
   return is_err;
