@@ -105,6 +105,12 @@ public:
 
 protected:
   /**
+   * Calls UEyeCamDriver::syncCamConfig(), then updates ROS camera info
+   * and ROS image settings.
+   */
+  virtual INT syncCamConfig(std::string dft_mode_str = "mono8");
+
+  /**
    * Reads parameter values from currently selected camera.
    */
   INT queryCamParams();

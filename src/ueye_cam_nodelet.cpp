@@ -70,6 +70,7 @@ const std::string UEyeCamNodelet::DEFAULT_COLOR_MODE = "";
 constexpr int UEyeCamDriver::ANY_CAMERA; // Needed since CMakeLists.txt creates 2 separate libraries: one for non-ROS parent class, and one for ROS child class
 
 
+// Note that these default settings will be overwritten by queryCamParams() during connectCam()
 UEyeCamNodelet::UEyeCamNodelet() :
     nodelet::Nodelet(),
     UEyeCamDriver(ANY_CAMERA, DEFAULT_CAMERA_NAME),
@@ -243,6 +244,7 @@ INT UEyeCamNodelet::parseROSParams(ros::NodeHandle& local_nh) {
             cam_params_.color_mode.begin(),
             ::tolower);
         if (cam_params_.color_mode != RGB8 &&
+            cam_params_.color_mode != BGR8 &&
             cam_params_.color_mode != MONO8 &&
             cam_params_.color_mode != BAYER_RGGB8) {
           WARN_STREAM("Invalid requested color mode: " << cam_params_.color_mode <<
@@ -449,26 +451,17 @@ INT UEyeCamNodelet::parseROSParams(ros::NodeHandle& local_nh) {
   if (hasNewParams) {
     // Configure color mode, resolution, and subsampling rate
     // NOTE: this batch of configurations are mandatory, to ensure proper allocation of local frame buffer
-    if ((is_err = setColorMode(cam_params_.color_mode, true)) != IS_SUCCESS) return is_err;
+    if ((is_err = setColorMode(cam_params_.color_mode, false)) != IS_SUCCESS) return is_err;
     if ((is_err = setResolution(cam_params_.image_width, cam_params_.image_height,
         cam_params_.image_left, cam_params_.image_top, false)) != IS_SUCCESS) return is_err;
     if ((is_err = setSubsampling(cam_params_.subsampling, false)) != IS_SUCCESS) return is_err;
     if ((is_err = setBinning(cam_params_.binning, false)) != IS_SUCCESS) return is_err;
-    if ((is_err = setSensorScaling(cam_params_.sensor_scaling, true)) != IS_SUCCESS) return is_err;
+    if ((is_err = setSensorScaling(cam_params_.sensor_scaling, false)) != IS_SUCCESS) return is_err;
 
-    // (Re-)populate ROS image message
-    // NOTE: the non-ROS UEye parameters and buffers have been updated by setColorMode, setResolution(), and setSubsampling()
-    ros_image_.header.frame_id = "/" + frame_name_;
-    ros_image_.height = cam_params_.image_height / (cam_params_.sensor_scaling * cam_params_.subsampling * cam_params_.binning);
-    ros_image_.width = cam_params_.image_width / (cam_params_.sensor_scaling * cam_params_.subsampling * cam_params_.binning);
-    ros_image_.encoding = cam_params_.color_mode;
-    ros_image_.step = cam_buffer_pitch_;
-    ros_image_.is_bigendian = 0;
-    ros_image_.data.resize(cam_buffer_size_);
-    
-    DEBUG_STREAM("(Re-)allocated space for ROS image buffer:\n  size = " << cam_buffer_size_ <<
-      "\n  width = " << ros_image_.width << "\n  height = " << ros_image_.height <<
-      "\n  step = " << ros_image_.step << "\n  encoding = " << ros_image_.encoding);
+    // Force synchronize settings and re-allocate frame buffer for redundancy
+    // NOTE: although this might not be needed, assume that parseROSParams()
+    //       is called only once per nodelet, thus ignore cost
+    if ((is_err = syncCamConfig()) != IS_SUCCESS) return is_err;
 
     // Check for mutual exclusivity among requested sensor parameters
     if (!cam_params_.auto_exposure) { // Auto frame rate requires auto shutter
@@ -532,7 +525,7 @@ void UEyeCamNodelet::configCallback(ueye_cam::UEyeCamConfig& config, uint32_t le
       config.image_left = cam_params_.image_left;
       config.image_top = cam_params_.image_top;
       if (setResolution(config.image_width, config.image_height,
-          config.image_left, config.image_top) != IS_SUCCESS) return;
+          config.image_left, config.image_top, false) != IS_SUCCESS) return;
     }
   }
 
@@ -551,21 +544,12 @@ void UEyeCamNodelet::configCallback(ueye_cam::UEyeCamConfig& config, uint32_t le
     if (setSensorScaling(config.sensor_scaling, false) != IS_SUCCESS) return;
   }
 
+  // Reallocate internal camera buffer, and synchronize both non-ROS and ROS settings
+  // for redundancy
   if (needToReallocateBuffer) {
-    if (reallocateCamBuffer() != IS_SUCCESS) return;
+    if (syncCamConfig() != IS_SUCCESS) return;
     needToReallocateBuffer = false;
   }
-
-  // (Re-)populate ROS image message
-  // NOTE: the non-ROS UEye parameters and buffers have been updated by setColorMode(),
-  // setResolution(), setSubsampling(), setBinning(), and setSensorScaling()
-  ros_image_.header.frame_id = "/" + frame_name_;
-  ros_image_.height = config.image_height / (config.sensor_scaling * config.subsampling * config.binning);
-  ros_image_.width = config.image_width / (config.sensor_scaling * config.subsampling * config.binning);
-  ros_image_.encoding = config.color_mode;
-  ros_image_.step = cam_buffer_pitch_;
-  ros_image_.is_bigendian = 0;
-  ros_image_.data.resize(cam_buffer_size_);
 
   // Check for mutual exclusivity among requested sensor parameters
   if (!config.auto_exposure) { // Auto frame rate requires auto shutter
@@ -652,101 +636,59 @@ void UEyeCamNodelet::configCallback(ueye_cam::UEyeCamConfig& config, uint32_t le
 };
 
 
+INT UEyeCamNodelet::syncCamConfig(string dft_mode_str) {
+  INT is_err;
+  
+  if ((is_err = UEyeCamDriver::syncCamConfig(dft_mode_str)) != IS_SUCCESS) return is_err;
+  
+  // Update ROS color mode string
+  INT query = is_SetColorMode(cam_handle_, IS_GET_COLOR_MODE);
+  if (query == IS_CM_MONO8) cam_params_.color_mode = MONO8;
+  else if (query == IS_CM_SENSOR_RAW8) cam_params_.color_mode = BAYER_RGGB8;
+  else if (query == IS_CM_RGB8_PACKED) cam_params_.color_mode = RGB8;
+  else if (query == IS_CM_BGR8_PACKED) cam_params_.color_mode = BGR8;
+  else {
+    ERROR_STREAM("Force-updating to default color mode: " << dft_mode_str <<
+      "\n(THIS IS A CODING ERROR, PLEASE CONTACT PACKAGE AUTHOR)");
+    cam_params_.color_mode = dft_mode_str;
+    setColorMode(cam_params_.color_mode);
+  }
+
+  // Copy internal settings to ROS dynamic configure settings
+  cam_params_.image_width = cam_aoi_.s32Width;   // Technically, these are width and height for the
+  cam_params_.image_height = cam_aoi_.s32Height; // sensor's Area of Interest, and not of the image
+  cam_params_.image_left = cam_aoi_.s32X;
+  cam_params_.image_top = cam_aoi_.s32Y;
+  cam_params_.subsampling = cam_subsampling_rate_;
+  cam_params_.binning = cam_binning_rate_;
+  cam_params_.sensor_scaling = cam_sensor_scaling_rate_;
+  // cfg_sync_requested_ = true; // WARNING: assume that dyncfg client may want to override current settings
+  
+  // (Re-)populate ROS image message
+  ros_image_.header.frame_id = "/" + frame_name_;
+  ros_image_.height = cam_params_.image_height / (cam_params_.sensor_scaling * cam_params_.subsampling * cam_params_.binning);
+  ros_image_.width = cam_params_.image_width / (cam_params_.sensor_scaling * cam_params_.subsampling * cam_params_.binning);
+  ros_image_.encoding = cam_params_.color_mode;
+  ros_image_.step = cam_buffer_pitch_;
+  ros_image_.is_bigendian = 0;
+  ros_image_.data.resize(cam_buffer_size_);
+    
+  DEBUG_STREAM("(Re-)allocated ROS image buffer:\n  size = " << cam_buffer_size_ <<
+    "\n  width = " << ros_image_.width << "\n  height = " << ros_image_.height <<
+    "\n  step = " << ros_image_.step << "\n  encoding = " << ros_image_.encoding);
+    
+  return is_err;
+};
+
+
 INT UEyeCamNodelet::queryCamParams() {
   INT is_err = IS_SUCCESS;
   INT query;
   double pval1, pval2;
 
-  query = is_SetColorMode(cam_handle_, IS_GET_COLOR_MODE);
-  if (query == IS_CM_MONO8) cam_params_.color_mode = MONO8;
-  else if (query == IS_CM_SENSOR_RAW8) cam_params_.color_mode = BAYER_RGGB8;
-  else if (query == IS_CM_RGB8_PACKED) cam_params_.color_mode = RGB8;
-  else {
-    WARN_STREAM("Camera configuration loaded into an unsupported color mode; switching to MONO8.");
-    cam_params_.color_mode = MONO8;
-    setColorMode(cam_params_.color_mode);
-  }
-
-  if ((is_err = is_AOI(cam_handle_, IS_AOI_IMAGE_GET_AOI,
-      (void*) &cam_aoi_, sizeof(cam_aoi_))) != IS_SUCCESS) {
-    ERROR_STREAM("Could not retrieve Area Of Interest from UEye camera '" <<
-        cam_name_ << "' (" << err2str(is_err) << ")");
-    disconnectCam();
-    return is_err;
-  }
-  cam_params_.image_width = cam_aoi_.s32Width;
-  cam_params_.image_height = cam_aoi_.s32Height;
-  cam_params_.image_left = cam_aoi_.s32X;
-  cam_params_.image_top = cam_aoi_.s32Y;
-
-  query = is_SetSubSampling(cam_handle_, IS_GET_SUBSAMPLING);
-  switch (query) {
-    case IS_SUBSAMPLING_DISABLE:
-      cam_params_.subsampling = 1;
-      break;
-    case IS_SUBSAMPLING_2X:
-      cam_params_.subsampling = 2;
-      break;
-    case IS_SUBSAMPLING_4X:
-      cam_params_.subsampling = 4;
-      break;
-    case IS_SUBSAMPLING_8X:
-      cam_params_.subsampling = 8;
-      break;
-    case IS_SUBSAMPLING_16X:
-      cam_params_.subsampling = 16;
-      break;
-    default:
-      WARN_STREAM("Query returned unsupported subsampling rate; resetting to 1X.");
-      cam_params_.subsampling = 1;
-      if ((is_err = setSubsampling(cam_params_.subsampling)) != IS_SUCCESS) return is_err;
-      break;
-  }
-
-  query = is_SetBinning(cam_handle_, IS_GET_BINNING);
-  switch (query) {
-    case IS_BINNING_DISABLE:
-      cam_params_.binning = 1;
-      break;
-    case IS_BINNING_2X:
-      cam_params_.binning = 2;
-      break;
-    case IS_BINNING_4X:
-      cam_params_.binning = 4;
-      break;
-    case IS_BINNING_8X:
-      cam_params_.binning = 8;
-      break;
-    case IS_BINNING_16X:
-      cam_params_.binning = 16;
-      break;
-    default:
-      WARN_STREAM("Query returned unsupported binning rate; resetting to 1X.");
-      cam_params_.binning = 1;
-      if ((is_err = setBinning(cam_params_.binning)) != IS_SUCCESS) return is_err;
-      break;
-  }
-
-  SENSORSCALERINFO sensorScalerInfo;
-  is_err = is_GetSensorScalerInfo(cam_handle_, &sensorScalerInfo, sizeof(sensorScalerInfo));
-  if (is_err == IS_NOT_SUPPORTED) {
-    cam_params_.sensor_scaling = 1.0;
-  } else if (is_err != IS_SUCCESS) {
-    ERROR_STREAM("Failed to query sensor scaler info (" << err2str(is_err) << ")");
-    return is_err;
-  } else {
-    cam_params_.sensor_scaling = sensorScalerInfo.dblCurrFactor;
-    if (!(cam_params_.sensor_scaling == 1.0 ||
-        cam_params_.sensor_scaling == 2.0 ||
-        cam_params_.sensor_scaling == 4.0 ||
-        cam_params_.sensor_scaling == 8.0 ||
-        cam_params_.sensor_scaling == 16.0)) {
-      WARN_STREAM("Unsupported sensor scaling rate: " << cam_params_.sensor_scaling <<
-          "; resetting to 1X.");
-      cam_params_.sensor_scaling = 1.0;
-      if ((is_err = setSensorScaling(cam_params_.sensor_scaling)) != IS_SUCCESS) return is_err;
-    }
-  }
+  // NOTE: assume that color mode, bits per pixel, area of interest info, resolution,
+  //       sensor scaling rate, subsampling rate, and binning rate have already
+  //       been synchronized by syncCamConfig()
 
   if ((is_err = is_SetAutoParameter(cam_handle_,
       IS_GET_ENABLE_AUTO_SENSOR_GAIN, &pval1, &pval2)) != IS_SUCCESS &&
@@ -858,20 +800,8 @@ INT UEyeCamNodelet::queryCamParams() {
   cam_params_.flip_upd = ((currROP & IS_SET_ROP_MIRROR_UPDOWN) == IS_SET_ROP_MIRROR_UPDOWN);
   cam_params_.flip_lr = ((currROP & IS_SET_ROP_MIRROR_LEFTRIGHT) == IS_SET_ROP_MIRROR_LEFTRIGHT);
 
-  // Populate ROS image message
-  // NOTE: the non-ROS UEye parameters and buffers have been updated by setColorMode, setResolution(), and setSubsampling()
-  ros_image_.header.frame_id = "/" + frame_name_;
-  ros_image_.height = cam_params_.image_height /
-      (cam_params_.sensor_scaling * cam_params_.subsampling * cam_params_.binning);
-  ros_image_.width = cam_params_.image_width /
-      (cam_params_.sensor_scaling * cam_params_.subsampling * cam_params_.binning);
-  ros_image_.encoding = cam_params_.color_mode;
-  ros_image_.step = cam_buffer_pitch_;
-  ros_image_.is_bigendian = 0;
-  ros_image_.data.resize(cam_buffer_size_);
-  DEBUG_STREAM("Allocated space for ROS image buffer:\n  size = " << cam_buffer_size_ <<
-    "\n  width = " << ros_image_.width << "\n  height = " << ros_image_.height <<
-    "\n  step = " << ros_image_.step << "\n  encoding = " << ros_image_.encoding);
+  // NOTE: do not need to (re-)populate ROS image message, since assume that
+  //       syncCamConfig() was previously called
     
   DEBUG_STREAM("Successfully queries parameters from UEye camera '" << cam_name_ << "'");
 
@@ -888,7 +818,7 @@ INT UEyeCamNodelet::connectCam() {
   if (cam_params_filename_.length() <= 0) { // Use default filename
     cam_params_filename_ = string(getenv("HOME")) + "/.ros/camera_conf/" + cam_name_ + ".ini";
   }
-  loadCamConfig(cam_params_filename_);
+  if ((is_err = loadCamConfig(cam_params_filename_)) != IS_SUCCESS) return is_err;
 
   // Query existing configuration parameters from camera
   if ((is_err = queryCamParams()) != IS_SUCCESS) return is_err;
@@ -1031,7 +961,8 @@ void UEyeCamNodelet::frameGrabLoop() {
         ros_cam_info_.width = cam_params_.image_width / cam_sensor_scaling_rate_ / cam_subsampling_rate_ / cam_binning_rate_;
         ros_cam_info_.height = cam_params_.image_height / cam_sensor_scaling_rate_ / cam_subsampling_rate_ / cam_binning_rate_;
 
-        // Check if content is contiguous
+        // Copy pixel content from internal frame buffer to ROS image
+        // TODO: 9 make ros_image_.data (std::vector) use cam_buffer_ (char*) as underlying buffer, without copy; alternatively after override reallocateCamBuffer() by allocating memory to ros_image_.data, and setting that as internal camera buffer with is_SetAllocatedImageMem (complication is that vector's buffer need to be mlock()-ed)
         int expected_row_stride = ros_cam_info_.width * bits_per_pixel_ / 8;
         if (cam_buffer_pitch_ < expected_row_stride) {
           ERROR_STREAM("Camera buffer pitch (" << cam_buffer_pitch_ << ") is smaller than expected: " <<

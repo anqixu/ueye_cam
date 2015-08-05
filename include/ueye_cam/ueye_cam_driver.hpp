@@ -114,17 +114,18 @@ public:
    * Loads UEye camera parameter configuration INI file into current camera's settings.
    *
    * \param filename Relative or absolute path to UEye camera configuration file.
+   * \param ignore_load_failure Return IS_SUCCESS even if failed to load INI file.
    *
    * \return IS_SUCCESS if successful, error flag otherwise (see err2str).
    */
-  INT loadCamConfig(std::string filename);
+  INT loadCamConfig(std::string filename, bool ignore_load_failure = true);
 
   /**
    * Updates current camera handle's color mode and re-initializes
    * internal frame buffer. This function will stop live capture
    * automatically if necessary.
    *
-   * \param mode Color mode string. Valid values: {"rgb8", "mono8", "bayer_rggb8"}.
+   * \param mode Color mode string. Valid values: {"rgb8", "bgr8", "mono8", "bayer_rggb8"}.
    *   Certain values may not be available for a given camera model.
    * \param reallocate_buffer Whether to auto-reallocate buffer or not after
    *   changing parameter. If set to false, remember to reallocate_buffer
@@ -373,9 +374,41 @@ public:
    * Stringifies UEye API error flag.
    */
   const static char* err2str(INT error);
+  
+  /**
+   * Stringifies UEye color mode flag.
+   */
+  const static char* colormode2str(INT mode);
 
 
 protected:
+  /**
+   * Queries current camera handle's configuration (color mode,
+   * (area of interest / resolution, sensor scaling rate, subsampling rate,
+   * binning rate) to synchronize with this class's internal member values,
+   * then force-updates to default settings if current ones are not supported
+   * by this driver wrapper (ueye_cam), and finally force (re-)allocates
+   * internal frame buffer.
+   * 
+   * This function is intended to be called internally, after opening a camera handle
+   * (in connectCam()) or after loading a UEye camera configuration file
+   * (in loadCamConfig()), where the camera may be already operating with a
+   * non-supported setting.
+   * 
+   * \param dft_mode_str: default color mode to switch to, if current color mode
+   *   is not supported by this driver wrapper. Valid values: {"rgb8", "bgr8", "mono8", "bayer_rggb8"}
+   * 
+   * \return IS_SUCCESS if successful, error flag otherwise (see err2str).
+   */
+  virtual INT syncCamConfig(std::string dft_mode_str = "mono8");
+
+
+  /**
+   * (Re-)allocates internal frame buffer after querying current
+   * area of interest (resolution), and configures IDS driver to use this buffer.
+   * 
+   * \return IS_SUCCESS if successful, error flag otherwise (see err2str).
+   */
   INT reallocateCamBuffer();
 
   HIDS cam_handle_;
