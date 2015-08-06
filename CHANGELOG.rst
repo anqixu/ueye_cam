@@ -2,6 +2,15 @@
 Changelog for package ueye_cam
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* fixed setting synchronization bugs during camera initialization
+* added support for (packed) BGR8 color mode
+* failing to set non-essential parameters will no longer prematurily terminate nodelet
+* updated printouts to be more verbose and consistent
+* fix for reported ARM arch on Fedora
+* Contributors: Anqi Xu, Scott K Logan
+
 1.0.9 (2015-02-03)
 ------------------
 * fixed lagged changes to flip_upd and flip_lr via rqt_reconfigure
