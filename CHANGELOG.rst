@@ -2,8 +2,8 @@
 Changelog for package ueye_cam
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.0.10 (2015-08-06)
+-------------------
 * fixed setting synchronization bugs during camera initialization
 * added support for (packed) BGR8 color mode
 * failing to set non-essential parameters will no longer prematurily terminate nodelet
