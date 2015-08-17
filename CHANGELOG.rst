@@ -2,6 +2,15 @@
 Changelog for package ueye_cam
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* updated barebones IDS drivers to 4.61
+* removed barebones IDS drivers from debian packaging
+* Added proper checking for C++11 features on compilers
+* Performed minor code cleanup, updated old PLUGINLIB_DECLARE_CLASS to
+  newer PLUGINLIB_EXPORT_CLASS
+* Contributors: Anqi Xu, Aris Synodinos
+
 1.0.10 (2015-08-06)
 -------------------
 * fixed setting synchronization bugs during camera initialization
