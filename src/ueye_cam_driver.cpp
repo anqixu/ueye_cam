@@ -72,12 +72,12 @@ UEyeCamDriver::UEyeCamDriver(int cam_ID, string cam_name) :
   cam_aoi_.s32Y = 0;
   cam_aoi_.s32Width = 640;
   cam_aoi_.s32Height = 480;
-};
+}
 
 
 UEyeCamDriver::~UEyeCamDriver() {
   disconnectCam();
-};
+}
 
 
 INT UEyeCamDriver::connectCam(int new_cam_ID) {
@@ -147,7 +147,7 @@ INT UEyeCamDriver::connectCam(int new_cam_ID) {
   DEBUG_STREAM("Connected to [" + cam_name_ + "]");
 
   return is_err;
-};
+}
 
 
 INT UEyeCamDriver::disconnectCam() {
@@ -170,7 +170,7 @@ INT UEyeCamDriver::disconnectCam() {
   }
 
   return is_err;
-};
+}
 
 
 INT UEyeCamDriver::loadCamConfig(string filename, bool ignore_load_failure) {
@@ -197,7 +197,7 @@ INT UEyeCamDriver::loadCamConfig(string filename, bool ignore_load_failure) {
   }
 
   return is_err;
-};
+}
 
 
 INT UEyeCamDriver::setColorMode(string mode, bool reallocate_buffer) {
@@ -242,7 +242,7 @@ INT UEyeCamDriver::setColorMode(string mode, bool reallocate_buffer) {
   DEBUG_STREAM("Updated color mode to " << mode << "for [" << cam_name_ << "]");
 
   return (reallocate_buffer ? reallocateCamBuffer() : IS_SUCCESS);
-};
+}
 
 
 INT UEyeCamDriver::setResolution(INT& image_width, INT& image_height,
@@ -289,7 +289,7 @@ INT UEyeCamDriver::setResolution(INT& image_width, INT& image_height,
     ") for [" << cam_name_ << "]");
 
   return (reallocate_buffer ? reallocateCamBuffer() : IS_SUCCESS);
-};
+}
 
 
 INT UEyeCamDriver::setSubsampling(int& rate, bool reallocate_buffer) {
@@ -361,7 +361,7 @@ INT UEyeCamDriver::setSubsampling(int& rate, bool reallocate_buffer) {
   cam_subsampling_rate_ = rate;
 
   return (reallocate_buffer ? reallocateCamBuffer() : IS_SUCCESS);
-};
+}
 
 
 INT UEyeCamDriver::setBinning(int& rate, bool reallocate_buffer) {
@@ -433,7 +433,7 @@ INT UEyeCamDriver::setBinning(int& rate, bool reallocate_buffer) {
   cam_binning_rate_ = rate;
 
   return (reallocate_buffer ? reallocateCamBuffer() : IS_SUCCESS);
-};
+}
 
 
 INT UEyeCamDriver::setSensorScaling(double& rate, bool reallocate_buffer) {
@@ -484,7 +484,7 @@ INT UEyeCamDriver::setSensorScaling(double& rate, bool reallocate_buffer) {
   cam_sensor_scaling_rate_ = rate;
 
   return (reallocate_buffer ? reallocateCamBuffer() : IS_SUCCESS);
-};
+}
 
 
 INT UEyeCamDriver::setGain(bool& auto_gain, INT& master_gain_prc, INT& red_gain_prc,
@@ -556,7 +556,7 @@ INT UEyeCamDriver::setGain(bool& auto_gain, INT& master_gain_prc, INT& red_gain_
   }
 
   return is_err;
-};
+}
 
 
 INT UEyeCamDriver::setExposure(bool& auto_exposure, double& exposure_ms) {
@@ -603,7 +603,7 @@ INT UEyeCamDriver::setExposure(bool& auto_exposure, double& exposure_ms) {
       " ms for [" << cam_name_ << "]");
 
   return is_err;
-};
+}
 
 
 INT UEyeCamDriver::setWhiteBalance(bool& auto_white_balance, INT& red_offset,
@@ -644,7 +644,7 @@ INT UEyeCamDriver::setWhiteBalance(bool& auto_white_balance, INT& red_offset,
     "\n  blue offset: " << blue_offset);
 
   return is_err;
-};
+}
 
 
 INT UEyeCamDriver::setFrameRate(bool& auto_frame_rate, double& frame_rate_hz) {
@@ -700,7 +700,7 @@ INT UEyeCamDriver::setFrameRate(bool& auto_frame_rate, double& frame_rate_hz) {
     ((auto_frame_rate) ? "auto" : to_string(frame_rate_hz)) << " Hz");
 
   return is_err;
-};
+}
 
 
 INT UEyeCamDriver::setPixelClockRate(INT& clock_rate_mhz) {
@@ -747,7 +747,7 @@ INT UEyeCamDriver::setPixelClockRate(INT& clock_rate_mhz) {
   DEBUG_STREAM("Updated pixel clock for [" << cam_name_ << "]: " << clock_rate_mhz << " MHz");
 
   return IS_SUCCESS;
-};
+}
 
 
 INT UEyeCamDriver::setFlashParams(INT& delay_us, UINT& duration_us) {
@@ -786,7 +786,7 @@ INT UEyeCamDriver::setFlashParams(INT& delay_us, UINT& duration_us) {
   }
 
   return is_err;
-};
+}
 
 
 INT UEyeCamDriver::setFreeRunMode() {
@@ -823,7 +823,7 @@ INT UEyeCamDriver::setFreeRunMode() {
   }
 
   return is_err;
-};
+}
 
 
 INT UEyeCamDriver::setExtTriggerMode() {
@@ -855,7 +855,7 @@ INT UEyeCamDriver::setExtTriggerMode() {
   }
 
   return is_err;
-};
+}
 
 
 INT UEyeCamDriver::setMirrorUpsideDown(bool flip_horizontal){
@@ -868,7 +868,7 @@ INT UEyeCamDriver::setMirrorUpsideDown(bool flip_horizontal){
      is_err = is_SetRopEffect(cam_handle_,IS_SET_ROP_MIRROR_UPDOWN,0,0);
 
   return is_err;
-};
+}
 
 
 INT UEyeCamDriver::setMirrorLeftRight(bool flip_vertical){
@@ -881,7 +881,7 @@ INT UEyeCamDriver::setMirrorLeftRight(bool flip_vertical){
      is_err = is_SetRopEffect(cam_handle_,IS_SET_ROP_MIRROR_LEFTRIGHT,0,0);
 
   return is_err;
-};
+}
 
 
 INT UEyeCamDriver::setStandbyMode() {
@@ -934,7 +934,7 @@ INT UEyeCamDriver::setStandbyMode() {
   }
 
   return is_err;
-};
+}
 
 
 const char* UEyeCamDriver::processNextFrame(INT timeout_ms) {
@@ -957,7 +957,7 @@ const char* UEyeCamDriver::processNextFrame(INT timeout_ms) {
   }
 
   return cam_buffer_;
-};
+}
 
 
 INT UEyeCamDriver::syncCamConfig(string dft_mode_str) {
@@ -1049,7 +1049,7 @@ INT UEyeCamDriver::syncCamConfig(string dft_mode_str) {
   
   // Force (re-)allocate internal frame buffer
   return reallocateCamBuffer();
-};
+}
 
 
 INT UEyeCamDriver::reallocateCamBuffer() {
@@ -1115,7 +1115,7 @@ INT UEyeCamDriver::reallocateCamBuffer() {
     "\n  expected buffer size: " << cam_buffer_size_);
 
   return is_err;
-};
+}
 
 
 const char* UEyeCamDriver::err2str(INT error) {
@@ -1213,7 +1213,7 @@ const char* UEyeCamDriver::err2str(INT error) {
   }
   return "UNKNOWN ERROR";
 #undef CASE
-};
+}
 
 
 const char* UEyeCamDriver::colormode2str(INT mode) {
@@ -1282,7 +1282,7 @@ const char* UEyeCamDriver::colormode2str(INT mode) {
   }
   return "UNKNOWN COLOR MODE";
 #undef CASE
-};
+}
 
 
-}; // namespace ueye_cam
+} // namespace ueye_cam
