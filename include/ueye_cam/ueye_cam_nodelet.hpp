@@ -180,7 +180,7 @@ protected:
 };
 
 
-}; // namespace ueye_cam
+} // namespace ueye_cam
 
 
 #endif /* UEYE_CAM_NODELET_HPP_ */
