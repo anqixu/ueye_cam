@@ -4,6 +4,8 @@ project(ueye_cam)
 
 set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS} -g -Wall") # For G++ <4.7; also appears to be supported in G++ 4.7+ as alias to c++11
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall)
+
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   nodelet
@@ -85,11 +87,12 @@ add_library(${UEYECAM_NODELET_NAME} ${UEYECAM_NODELET_SOURCES} ${UEYECAM_NODELET
 target_link_libraries(${UEYECAM_NODELET_NAME} ${catkin_LIBRARIES} ${UEYECAM_LIB_NAME})
 add_dependencies(${UEYECAM_NODELET_NAME} ${PROJECT_NAME}_gencfg)
 
-if(USE_UNOFFICIAL_UEYE_DRIVERS)
-  get_filename_component(UNOFFICIAL_UEYE_DRIVERS_LIB_REALPATH ${UEYE_LIBRARY} REALPATH)
-  install(FILES ${UEYE_LIBRARY} ${UNOFFICIAL_UEYE_DRIVERS_LIB_REALPATH}
-    DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
-endif()
+# Do not package the barebones IDS drivers, since they will mask over the official drivers (when present)
+#if(USE_UNOFFICIAL_UEYE_DRIVERS)
+#  get_filename_component(UNOFFICIAL_UEYE_DRIVERS_LIB_REALPATH ${UEYE_LIBRARY} REALPATH)
+#  install(FILES ${UEYE_LIBRARY} ${UNOFFICIAL_UEYE_DRIVERS_LIB_REALPATH}
+#    DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
+#endif()
 
 install(TARGETS ${UEYECAM_LIB_NAME} ${UEYECAM_NODELET_NAME}
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
