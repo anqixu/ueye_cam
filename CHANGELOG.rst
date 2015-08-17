@@ -2,8 +2,8 @@
 Changelog for package ueye_cam
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.0.11 (2015-08-17)
+-------------------
 * updated barebones IDS drivers to 4.61
 * removed barebones IDS drivers from debian packaging
 * Added proper checking for C++11 features on compilers
