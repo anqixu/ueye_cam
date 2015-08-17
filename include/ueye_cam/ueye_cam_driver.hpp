@@ -49,7 +49,7 @@
 #define UEYE_CAM_DRIVER_HPP_
 
 
-#include <uEye.h>
+#include <ueye.h>
 #include <string>
 #include <thread>
 #include "logging_macros.hpp"
