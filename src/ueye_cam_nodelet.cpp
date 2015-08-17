@@ -108,7 +108,7 @@ UEyeCamNodelet::UEyeCamNodelet() :
   cam_params_.flash_duration = DEFAULT_FLASH_DURATION;
   cam_params_.flip_upd = false;
   cam_params_.flip_lr = false;
-};
+}
 
 
 UEyeCamNodelet::~UEyeCamNodelet() {
@@ -121,7 +121,7 @@ UEyeCamNodelet::~UEyeCamNodelet() {
   //  delete ros_cfg_;
   //  ros_cfg_ = NULL;
   //}
-};
+}
 
 
 void UEyeCamNodelet::onInit() {
@@ -191,7 +191,7 @@ void UEyeCamNodelet::onInit() {
       "Mirror Image Upside Down:\t" << cam_params_.flip_upd << endl <<
       "Mirror Image Left Right:\t" << cam_params_.flip_lr << endl
       );
-};
+}
 
 
 INT UEyeCamNodelet::parseROSParams(ros::NodeHandle& local_nh) {
@@ -501,7 +501,7 @@ INT UEyeCamNodelet::parseROSParams(ros::NodeHandle& local_nh) {
   DEBUG_STREAM("Successfully applied settings from ROS params to [" << cam_name_ << "]");
 
   return is_err;
-};
+}
 
 
 void UEyeCamNodelet::configCallback(ueye_cam::UEyeCamConfig& config, uint32_t level) {
@@ -642,7 +642,7 @@ void UEyeCamNodelet::configCallback(ueye_cam::UEyeCamConfig& config, uint32_t le
   }
   
   DEBUG_STREAM("Successfully applied settings from dyncfg to [" << cam_name_ << "]");
-};
+}
 
 
 INT UEyeCamNodelet::syncCamConfig(string dft_mode_str) {
@@ -690,7 +690,7 @@ INT UEyeCamNodelet::syncCamConfig(string dft_mode_str) {
     "\n  encoding: " << ros_image_.encoding);
     
   return is_err;
-};
+}
 
 
 INT UEyeCamNodelet::queryCamParams() {
@@ -818,7 +818,7 @@ INT UEyeCamNodelet::queryCamParams() {
   DEBUG_STREAM("Successfully queries parameters from [" << cam_name_ << "]");
 
   return is_err;
-};
+}
 
 
 INT UEyeCamNodelet::connectCam() {
@@ -839,7 +839,7 @@ INT UEyeCamNodelet::connectCam() {
   if ((is_err = parseROSParams(getPrivateNodeHandle())) != IS_SUCCESS) return is_err;
 
   return IS_SUCCESS;
-};
+}
 
 
 INT UEyeCamNodelet::disconnectCam() {
@@ -851,7 +851,7 @@ INT UEyeCamNodelet::disconnectCam() {
   }
 
   return is_err;
-};
+}
 
 
 bool UEyeCamNodelet::setCamInfo(sensor_msgs::SetCameraInfo::Request& req,
@@ -863,7 +863,7 @@ bool UEyeCamNodelet::setCamInfo(sensor_msgs::SetCameraInfo::Request& req,
     "successfully wrote camera info to file" :
     "failed to write camera info to file";
   return true;
-};
+}
 
 
 void UEyeCamNodelet::frameGrabLoop() {
@@ -1016,13 +1016,13 @@ void UEyeCamNodelet::frameGrabLoop() {
   frame_grab_alive_ = false;
   
   DEBUG_STREAM("Frame grabber loop terminated for [" << cam_name_ << "]");
-};
+}
 
 
 void UEyeCamNodelet::startFrameGrabber() {
   frame_grab_alive_ = true;
   frame_grab_thread_ = thread(bind(&UEyeCamNodelet::frameGrabLoop, this));
-};
+}
 
 
 void UEyeCamNodelet::stopFrameGrabber() {
@@ -1031,7 +1031,7 @@ void UEyeCamNodelet::stopFrameGrabber() {
     frame_grab_thread_.join();
   }
   frame_grab_thread_ = thread();
-};
+}
 
 
 void UEyeCamNodelet::loadIntrinsicsFile() {
@@ -1043,7 +1043,7 @@ void UEyeCamNodelet::loadIntrinsicsFile() {
     DEBUG_STREAM("Loaded intrinsics parameters for [" << cam_name_ << "]");
   }
   ros_cam_info_.header.frame_id = "/" + frame_name_;
-};
+}
 
 
 bool UEyeCamNodelet::saveIntrinsicsFile() {
@@ -1053,14 +1053,14 @@ bool UEyeCamNodelet::saveIntrinsicsFile() {
     return true;
   }
   return false;
-};
+}
 // TODO: 0 bug where nodelet locks and requires SIGTERM when there are still subscribers (need to find where does code hang)
 
-}; // namespace ueye_cam
+} // namespace ueye_cam
 
 
 // TODO: 9 bug: when binning (and suspect when subsampling / sensor scaling), white balance / color gains seem to have different effects
 
 
 #include <pluginlib/class_list_macros.h>
-PLUGINLIB_DECLARE_CLASS(ueye_cam, ueye_cam_nodelet, ueye_cam::UEyeCamNodelet, nodelet::Nodelet)
+PLUGINLIB_EXPORT_CLASS(ueye_cam::UEyeCamNodelet, nodelet::Nodelet)
