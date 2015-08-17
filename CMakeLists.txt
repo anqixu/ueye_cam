@@ -2,7 +2,19 @@ cmake_minimum_required(VERSION 2.8.3)
 
 project(ueye_cam)
 
-set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS} -g -Wall") # For G++ <4.7; also appears to be supported in G++ 4.7+ as alias to c++11
+# C++11 Needed
+include(CheckCXXCompilerFlag)
+
+CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
+CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
+
+if(COMPILER_SUPPORTS_CXX11)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+elseif(COMPILER_SUPPORTS_CXX0X)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+else()
+    message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
+endif()
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
@@ -38,10 +50,6 @@ endif()
 
 set(UEYECAM_NODELET_NAME ueye_cam_nodelet)
 set(UEYECAM_LIB_NAME ueye_wrapper)
-
-set(UEYECAM_NODE_SOURCES
-  src/ueye_cam_node.cpp
-)
 
 set(UEYECAM_LIB_SOURCES
   src/ueye_cam_driver.cpp
