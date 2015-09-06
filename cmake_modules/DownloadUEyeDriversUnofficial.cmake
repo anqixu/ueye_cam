@@ -58,14 +58,21 @@ function(download_ueye_drivers UEYE_LIBRARY_VAR UEYE_INCLUDE_DIR_VAR UEYE_DRIVER
       COMMAND ${CMAKE_COMMAND} -E tar xzf ${UEYE_DRIVER_DIR}/${UEYE_ARCHIVE}
       WORKING_DIRECTORY ${UEYE_DRIVER_DIR}
     )
+
+    if(UEYE_ARCH STREQUAL "arm")
+      set (UEYE_ARCH_DIR "armhf")
+    else()
+      set (UEYE_ARCH_DIR "${UEYE_ARCH}")
+    endif()
+
     configure_file(
-      ${UEYE_DRIVER_DIR}/${UEYE_ARCH}/ueye.h
-      ${UEYE_DRIVER_DIR}/${UEYE_ARCH}/uEye.h
+      ${UEYE_DRIVER_DIR}/${UEYE_ARCH_DIR}/ueye.h
+      ${UEYE_DRIVER_DIR}/${UEYE_ARCH_DIR}/uEye.h
       COPYONLY
     )
     
     # Re-direct include and linker paths
-    set(${UEYE_LIBRARY_VAR} ${UEYE_DRIVER_DIR}/${UEYE_ARCH}/libueye_api.so PARENT_SCOPE)
-    set(${UEYE_INCLUDE_DIR_VAR} ${UEYE_DRIVER_DIR}/${UEYE_ARCH} PARENT_SCOPE)
+    set(${UEYE_LIBRARY_VAR} ${UEYE_DRIVER_DIR}/${UEYE_ARCH_DIR}/libueye_api.so PARENT_SCOPE)
+    set(${UEYE_INCLUDE_DIR_VAR} ${UEYE_DRIVER_DIR}/${UEYE_ARCH_DIR} PARENT_SCOPE)
   endif (FOUND_UEYE_H)
 endfunction()
