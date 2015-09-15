@@ -1284,5 +1284,13 @@ const char* UEyeCamDriver::colormode2str(INT mode) {
 #undef CASE
 }
 
+bool UEyeCamDriver::getTimestamp(UEYETIME *timestamp) {
+  UEYEIMAGEINFO ImageInfo;
+  if(is_GetImageInfo (cam_handle_, cam_buffer_id_, &ImageInfo, sizeof (ImageInfo)) == IS_SUCCESS) {
+    *timestamp = ImageInfo.TimestampSystem;
+    return true;
+  }
+  return false;
+}
 
 } // namespace ueye_cam

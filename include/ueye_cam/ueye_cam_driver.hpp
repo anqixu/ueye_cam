@@ -380,6 +380,11 @@ public:
    */
   const static char* colormode2str(INT mode);
 
+  /**
+   * Sets a timestamp indicating the moment of the image capture
+   */
+  bool getTimestamp(UEYETIME *timestamp);
+
 
 protected:
   /**

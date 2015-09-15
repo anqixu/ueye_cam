@@ -158,6 +158,11 @@ protected:
   void startFrameGrabber();
   void stopFrameGrabber();
 
+  /**
+   * Returns image's timestamp or current wall time if driver call fails.
+   */
+  ros::Time getImageTimestamp();
+
   std::thread frame_grab_thread_;
   bool frame_grab_alive_;
 
