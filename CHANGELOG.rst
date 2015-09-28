@@ -2,8 +2,8 @@
 Changelog for package ueye_cam
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.0.12 (2015-09-28)
+-------------------
 * fixed binning IS_INVALID_BUFFER_SIZE bug
 * Modified nodelet to use camera timestamp instead of wall clock time
 * Fix for new upstream dir name on ARM
