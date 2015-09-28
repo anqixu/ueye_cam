@@ -675,8 +675,8 @@ INT UEyeCamNodelet::syncCamConfig(string dft_mode_str) {
   
   // (Re-)populate ROS image message
   ros_image_.header.frame_id = "/" + frame_name_;
-  ros_image_.height = cam_params_.image_height / (cam_params_.sensor_scaling * cam_params_.subsampling * cam_params_.binning);
-  ros_image_.width = cam_params_.image_width / (cam_params_.sensor_scaling * cam_params_.subsampling * cam_params_.binning);
+  ros_image_.height = cam_params_.image_height / (cam_params_.sensor_scaling * cam_params_.subsampling);
+  ros_image_.width = cam_params_.image_width / (cam_params_.sensor_scaling * cam_params_.subsampling);
   ros_image_.encoding = cam_params_.color_mode;
   ros_image_.step = cam_buffer_pitch_;
   ros_image_.is_bigendian = 0;
