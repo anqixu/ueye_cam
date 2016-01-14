@@ -34,14 +34,15 @@
 #include <dlfcn.h>
 #include <ros/ros.h>
 
-int main() {
+int main(int argc, char **argv) {
   void *handle;
   handle = dlopen("libueye_api.so", RTLD_LAZY);
   if ( ! handle ) {
     ROS_ERROR("The official IDS uEye driver (libueye_api.so) were not detected on your machine.");
     ROS_ERROR("You (or a system administrator) MUST still download and install the official IDS uEye drivers (http://en.ids-imaging.com/download-ueye.html).");
-    ROS_ERROR("Also make sure that the IDS daemon (/etc/init.d/ueyeusbdrc) is running.");
     exit(1);
   }
+  ros::init(argc, argv, "check_ueye_api");
+  ros::spin();
   exit(0);
 }
