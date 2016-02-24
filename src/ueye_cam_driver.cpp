@@ -804,9 +804,9 @@ INT UEyeCamDriver::setFreeRunMode() {
     UINT nMode = IO_FLASH_MODE_FREERUN_HI_ACTIVE;
     if ((is_err = is_IO(cam_handle_, IS_IO_CMD_FLASH_SET_MODE,
         (void*) &nMode, sizeof(nMode))) != IS_SUCCESS) {
-      ERROR_STREAM("Could not set free-run active-low flash output for [" << cam_name_ <<
+      WARN_STREAM("Could not set free-run active-low flash output for [" << cam_name_ <<
         "] (" << err2str(is_err) << ")");
-      return is_err;
+      WARN_STREAM("WARNING: camera hardware does not support ueye_cam's master-slave synchronization method");
     }
 
     if ((is_err = is_EnableEvent(cam_handle_, IS_SET_EVENT_FRAME)) != IS_SUCCESS) {
