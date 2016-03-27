@@ -1293,4 +1293,13 @@ bool UEyeCamDriver::getTimestamp(UEYETIME *timestamp) {
   return false;
 }
 
+bool UEyeCamDriver::getClockTick(uint64_t *tick) {
+  UEYEIMAGEINFO ImageInfo;
+  if(is_GetImageInfo (cam_handle_, cam_buffer_id_, &ImageInfo, sizeof (ImageInfo)) == IS_SUCCESS) {
+    *tick = ImageInfo.u64TimestampDevice;
+    return true;
+  }
+  return false;
+}
+
 } // namespace ueye_cam

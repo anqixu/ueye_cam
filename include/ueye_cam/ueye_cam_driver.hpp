@@ -384,6 +384,11 @@ public:
    * Sets a timestamp indicating the moment of the image capture
    */
   bool getTimestamp(UEYETIME *timestamp);
+  
+  /**
+   * Sets a clock tick indicating the moment of the image capture
+   */
+  bool getClockTick(uint64_t *tick);
 
 
 protected:

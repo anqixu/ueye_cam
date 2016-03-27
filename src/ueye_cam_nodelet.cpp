@@ -949,7 +949,16 @@ void UEyeCamNodelet::frameGrabLoop() {
       INT eventTimeout = (cam_params_.auto_frame_rate || cam_params_.ext_trigger_mode) ?
           (INT) 2000 : (INT) (1000.0 / cam_params_.frame_rate * 2);
       if (processNextFrame(eventTimeout) != NULL) {
-        ros_image_.header.stamp = ros_cam_info_.header.stamp = getImageTimestamp();
+        if (init_ros_time_.isZero()) {
+          if(getClockTick(&init_clock_tick_)) {
+            init_ros_time_ = getImageTimestamp();
+            
+            // Deal with instability in getImageTimestamp due to daylight savings time
+            if (abs((ros::Time::now() - init_ros_time_).toSec()) > abs((ros::Time::now() - (init_ros_time_+ros::Duration(3600,0))).toSec())) { init_ros_time_ += ros::Duration(3600,0); }
+            if (abs((ros::Time::now() - init_ros_time_).toSec()) > abs((ros::Time::now() - (init_ros_time_-ros::Duration(3600,0))).toSec())) { init_ros_time_ -= ros::Duration(3600,0); }
+          }
+        }
+        ros_image_.header.stamp = ros_cam_info_.header.stamp = getImageTickTimestamp();
         // Process new frame
 #ifdef DEBUG_PRINTOUT_FRAME_GRAB_RATES
         grabbedFrameCount++;
@@ -1066,6 +1075,14 @@ ros::Time UEyeCamNodelet::getImageTimestamp() {
     tm.tm_min = utime.wMinute;
     tm.tm_sec = utime.wSecond;
     return ros::Time(mktime(&tm),utime.wMilliseconds*1e6);
+  }
+  return ros::Time::now();
+}
+
+ros::Time UEyeCamNodelet::getImageTickTimestamp() {
+  uint64_t tick;
+  if(getClockTick(&tick)) {
+    return init_ros_time_ + ros::Duration(double(tick - init_clock_tick_)*1e-7);
   }
   return ros::Time::now();
 }
