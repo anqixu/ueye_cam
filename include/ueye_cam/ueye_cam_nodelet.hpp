@@ -162,6 +162,11 @@ protected:
    * Returns image's timestamp or current wall time if driver call fails.
    */
   ros::Time getImageTimestamp();
+  
+  /**
+   * Returns image's timestamp based on device's internal clock or current wall time if driver call fails.
+   */
+  ros::Time getImageTickTimestamp();
 
   std::thread frame_grab_thread_;
   bool frame_grab_alive_;
@@ -182,6 +187,9 @@ protected:
   std::string cam_intr_filename_;
   std::string cam_params_filename_; // should be valid UEye INI file
   ueye_cam::UEyeCamConfig cam_params_;
+  
+  ros::Time init_ros_time_;
+  uint64_t init_clock_tick_;
 };
 
 
