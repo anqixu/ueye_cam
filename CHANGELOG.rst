@@ -2,6 +2,15 @@
 Changelog for package ueye_cam
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Change timestamp source based on issue https://github.com/anqixu/ueye_cam/issues/37
+* changed 'failure to set active-low flash' from error to warning
+* Fixed typo in Gain for dynamic reconfigure parameters
+* Updated pixel_clock cap in dyncfg settings
+* Added check_ueye_api to confirm availability of IDS SDK at runtime
+* Contributors: Anqi Xu, Anup, Aris Synodinos, Kei Okada
+
 1.0.12 (2015-09-28)
 -------------------
 * fixed binning IS_INVALID_BUFFER_SIZE bug
