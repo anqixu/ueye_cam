@@ -2,8 +2,8 @@
 Changelog for package ueye_cam
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.0.13 (2016-05-13)
+-------------------
 * Change timestamp source based on issue https://github.com/anqixu/ueye_cam/issues/37
 * changed 'failure to set active-low flash' from error to warning
 * Fixed typo in Gain for dynamic reconfigure parameters
