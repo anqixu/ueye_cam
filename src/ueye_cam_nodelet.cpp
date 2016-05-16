@@ -461,10 +461,10 @@ INT UEyeCamNodelet::parseROSParams(ros::NodeHandle& local_nh) {
     // Configure color mode, resolution, and subsampling rate
     // NOTE: this batch of configurations are mandatory, to ensure proper allocation of local frame buffer
     if ((is_err = setColorMode(cam_params_.color_mode, false)) != IS_SUCCESS) return is_err;
-    if ((is_err = setResolution(cam_params_.image_width, cam_params_.image_height,
-        cam_params_.image_left, cam_params_.image_top, false)) != IS_SUCCESS) return is_err;
     if ((is_err = setSubsampling(cam_params_.subsampling, false)) != IS_SUCCESS) return is_err;
     if ((is_err = setBinning(cam_params_.binning, false)) != IS_SUCCESS) return is_err;
+    if ((is_err = setResolution(cam_params_.image_width, cam_params_.image_height,
+        cam_params_.image_left, cam_params_.image_top, false)) != IS_SUCCESS) return is_err;
     if ((is_err = setSensorScaling(cam_params_.sensor_scaling, false)) != IS_SUCCESS) return is_err;
 
     // Force synchronize settings and re-allocate frame buffer for redundancy
@@ -675,8 +675,8 @@ INT UEyeCamNodelet::syncCamConfig(string dft_mode_str) {
   
   // (Re-)populate ROS image message
   ros_image_.header.frame_id = "/" + frame_name_;
-  ros_image_.height = cam_params_.image_height / (cam_params_.sensor_scaling);
-  ros_image_.width = cam_params_.image_width / (cam_params_.sensor_scaling);
+  ros_image_.height = cam_params_.image_height/ (cam_params_.sensor_scaling);
+  ros_image_.width = cam_params_.image_width/ (cam_params_.sensor_scaling);
   ros_image_.encoding = cam_params_.color_mode;
   ros_image_.step = cam_buffer_pitch_;
   ros_image_.is_bigendian = 0;
@@ -982,8 +982,8 @@ void UEyeCamNodelet::frameGrabLoop() {
 
         if (!frame_grab_alive_ || !ros::ok()) break;
         
-        ros_cam_info_.width = cam_params_.image_width / cam_sensor_scaling_rate_ / cam_subsampling_rate_ / cam_binning_rate_;
-        ros_cam_info_.height = cam_params_.image_height / cam_sensor_scaling_rate_ / cam_subsampling_rate_ / cam_binning_rate_;
+        ros_cam_info_.width = cam_params_.image_width / cam_sensor_scaling_rate_ / cam_binning_rate_;
+        ros_cam_info_.height = cam_params_.image_height / cam_sensor_scaling_rate_ / cam_binning_rate_;
 
         // Copy pixel content from internal frame buffer to ROS image
         // TODO: 9 make ros_image_.data (std::vector) use cam_buffer_ (char*) as underlying buffer, without copy; alternatively after override reallocateCamBuffer() by allocating memory to ros_image_.data, and setting that as internal camera buffer with is_SetAllocatedImageMem (complication is that vector's buffer need to be mlock()-ed)
