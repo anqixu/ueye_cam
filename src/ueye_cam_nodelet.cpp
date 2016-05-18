@@ -444,7 +444,9 @@ INT UEyeCamNodelet::parseROSParams(ros::NodeHandle& local_nh) {
           cam_params_.output_rate <<
           "; using current frame rate: " << prevCamParams.output_rate);
         cam_params_.output_rate = prevCamParams.output_rate;
-      } else {
+      } 
+      else {
+      	cam_params_.output_rate = std::min( cam_params_.frame_rate, cam_params_.output_rate );
         hasNewParams = true;
       }
     }
@@ -1001,6 +1003,7 @@ void UEyeCamNodelet::frameGrabLoop() {
 
         if (!frame_grab_alive_ || !ros::ok()) break;
         
+        // Only process and publish the frame if we're slower than the requested rate
 		double rate_hz = 1.0 / ( ros_image_.header.stamp - last_image_stamp ).toSec();
 		if ( rate_hz > cam_params_.output_rate ) continue;
 
