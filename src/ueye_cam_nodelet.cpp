@@ -102,6 +102,7 @@ UEyeCamNodelet::UEyeCamNodelet() :
   cam_params_.white_balance_blue_offset = 0;
   cam_params_.auto_frame_rate = false;
   cam_params_.frame_rate = DEFAULT_FRAME_RATE;
+  cam_params_.output_rate = DEFAULT_FRAME_RATE;
   cam_params_.pixel_clock = DEFAULT_PIXEL_CLOCK;
   cam_params_.ext_trigger_mode = false;
   cam_params_.flash_delay = 0;
@@ -159,6 +160,7 @@ void UEyeCamNodelet::onInit() {
     ERROR_STREAM("Failed to initialize [" << cam_name_ << "]");
     return;
   }
+
   ros_cfg_->setCallback(f); // this will call configCallback, which will configure the camera's parameters
   startFrameGrabber();
   INFO_STREAM(
@@ -187,6 +189,7 @@ void UEyeCamNodelet::onInit() {
       "Ext Trigger Mode:\t" << cam_params_.ext_trigger_mode << endl <<
       "Auto Frame Rate:\t" << cam_params_.auto_frame_rate << endl <<
       "Frame Rate (Hz):\t" << cam_params_.frame_rate << endl <<
+      "Output Rate (Hz):\t" << cam_params_.output_rate << endl <<
       "Pixel Clock (MHz):\t" << cam_params_.pixel_clock << endl <<
       "Mirror Image Upside Down:\t" << cam_params_.flip_upd << endl <<
       "Mirror Image Left Right:\t" << cam_params_.flip_lr << endl
@@ -426,6 +429,21 @@ INT UEyeCamNodelet::parseROSParams(ros::NodeHandle& local_nh) {
           cam_params_.frame_rate <<
           "; using current frame rate: " << prevCamParams.frame_rate);
         cam_params_.frame_rate = prevCamParams.frame_rate;
+      } else {
+        hasNewParams = true;
+      }
+    }
+  }
+  cam_params_.output_rate = cam_params_.frame_rate;
+  
+  if (local_nh.hasParam("output_rate")) {
+    local_nh.getParam("output_rate", cam_params_.output_rate);
+    if (cam_params_.output_rate != prevCamParams.output_rate) {
+      if (cam_params_.output_rate <= 0.0) {
+        WARN_STREAM("Invalid requested output rate for [" << cam_name_ << "]: " <<
+          cam_params_.output_rate <<
+          "; using current frame rate: " << prevCamParams.output_rate);
+        cam_params_.output_rate = prevCamParams.output_rate;
       } else {
         hasNewParams = true;
       }
@@ -883,6 +901,7 @@ void UEyeCamNodelet::frameGrabLoop() {
   DEBUG_STREAM("Starting threaded frame grabber loop for [" << cam_name_ << "]");
 
   ros::Rate idleDelay(200);
+  ros::Time last_image_stamp(0);
 
   int prevNumSubscribers = 0;
   int currNumSubscribers = 0;
@@ -982,6 +1001,9 @@ void UEyeCamNodelet::frameGrabLoop() {
 
         if (!frame_grab_alive_ || !ros::ok()) break;
         
+		double rate_hz = 1.0 / ( ros_image_.header.stamp - last_image_stamp ).toSec();
+		if ( rate_hz > cam_params_.output_rate ) continue;
+
         ros_cam_info_.width = cam_params_.image_width / cam_sensor_scaling_rate_ / cam_binning_rate_;
         ros_cam_info_.height = cam_params_.image_height / cam_sensor_scaling_rate_ / cam_binning_rate_;
 
@@ -1013,7 +1035,9 @@ void UEyeCamNodelet::frameGrabLoop() {
         ros_image_.header.frame_id = ros_cam_info_.header.frame_id;
 
         if (!frame_grab_alive_ || !ros::ok()) break;
-        ros_cam_pub_.publish(ros_image_, ros_cam_info_);
+
+        ros_cam_pub_.publish(ros_image_, ros_cam_info_); 
+		last_image_stamp = ros_image_.header.stamp;
       }
     }
 
