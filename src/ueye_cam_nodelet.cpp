@@ -903,7 +903,8 @@ void UEyeCamNodelet::frameGrabLoop() {
   DEBUG_STREAM("Starting threaded frame grabber loop for [" << cam_name_ << "]");
 
   ros::Rate idleDelay(200);
-  ros::Time last_image_stamp(0);
+  int output_frame_count=1;
+  ros::Time output_time_origin(0);
 
   int prevNumSubscribers = 0;
   int currNumSubscribers = 0;
@@ -1003,9 +1004,14 @@ void UEyeCamNodelet::frameGrabLoop() {
 
         if (!frame_grab_alive_ || !ros::ok()) break;
         
+        if ( output_time_origin.is_zero() )
+          output_time_origin = ros_image_.header.stamp;
+        
+        float time_elapsed = ( ros_image_.header.stamp - output_time_origin ).toSec();
+        
         // Only process and publish the frame if we're slower than the requested rate
-        double rate_hz = 1.0 / ( ros_image_.header.stamp - last_image_stamp ).toSec();
-        if ( rate_hz > cam_params_.output_rate ) continue;
+        if ( ( time_elapsed * cam_params_.output_rate ) < output_frame_count )
+          continue;
 
         ros_cam_info_.width = cam_params_.image_width / cam_sensor_scaling_rate_ / cam_binning_rate_;
         ros_cam_info_.height = cam_params_.image_height / cam_sensor_scaling_rate_ / cam_binning_rate_;
@@ -1040,7 +1046,7 @@ void UEyeCamNodelet::frameGrabLoop() {
         if (!frame_grab_alive_ || !ros::ok()) break;
 
         ros_cam_pub_.publish(ros_image_, ros_cam_info_); 
-        last_image_stamp = ros_image_.header.stamp;
+        output_frame_count += 1;
       }
     }
 
