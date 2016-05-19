@@ -446,7 +446,7 @@ INT UEyeCamNodelet::parseROSParams(ros::NodeHandle& local_nh) {
         cam_params_.output_rate = prevCamParams.output_rate;
       } 
       else {
-      	cam_params_.output_rate = std::min( cam_params_.frame_rate, cam_params_.output_rate );
+        cam_params_.output_rate = std::min( cam_params_.frame_rate, cam_params_.output_rate );
         hasNewParams = true;
       }
     }
@@ -1004,8 +1004,8 @@ void UEyeCamNodelet::frameGrabLoop() {
         if (!frame_grab_alive_ || !ros::ok()) break;
         
         // Only process and publish the frame if we're slower than the requested rate
-		double rate_hz = 1.0 / ( ros_image_.header.stamp - last_image_stamp ).toSec();
-		if ( rate_hz > cam_params_.output_rate ) continue;
+        double rate_hz = 1.0 / ( ros_image_.header.stamp - last_image_stamp ).toSec();
+        if ( rate_hz > cam_params_.output_rate ) continue;
 
         ros_cam_info_.width = cam_params_.image_width / cam_sensor_scaling_rate_ / cam_binning_rate_;
         ros_cam_info_.height = cam_params_.image_height / cam_sensor_scaling_rate_ / cam_binning_rate_;
@@ -1040,7 +1040,7 @@ void UEyeCamNodelet::frameGrabLoop() {
         if (!frame_grab_alive_ || !ros::ok()) break;
 
         ros_cam_pub_.publish(ros_image_, ros_cam_info_); 
-		last_image_stamp = ros_image_.header.stamp;
+        last_image_stamp = ros_image_.header.stamp;
       }
     }
 
