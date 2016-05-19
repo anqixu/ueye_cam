@@ -53,6 +53,7 @@
     
     <param name="auto_frame_rate" type="bool" value="False" />
     <param name="frame_rate" type="double" value="30.0" />
+    <param name="output_rate" type="double" value="0.0" /> <!-- >0: throttle rate for publishing frames -->
     <param name="pixel_clock" type="int" value="25" />
 
     <param name="flip_upd" type="bool" value="False" />

@@ -80,7 +80,9 @@ UEyeCamNodelet::UEyeCamNodelet() :
     ros_frame_count_(0),
     cam_topic_(DEFAULT_CAMERA_TOPIC),
     cam_intr_filename_(""),
-    cam_params_filename_("") {
+    cam_params_filename_(""),
+    init_publish_time_(0),
+    prev_output_frame_idx_(0) {
   cam_params_.image_width = DEFAULT_IMAGE_WIDTH;
   cam_params_.image_height = DEFAULT_IMAGE_HEIGHT;
   cam_params_.image_left = -1;
@@ -102,7 +104,7 @@ UEyeCamNodelet::UEyeCamNodelet() :
   cam_params_.white_balance_blue_offset = 0;
   cam_params_.auto_frame_rate = false;
   cam_params_.frame_rate = DEFAULT_FRAME_RATE;
-  cam_params_.output_rate = DEFAULT_FRAME_RATE;
+  cam_params_.output_rate = 0; // disable by default
   cam_params_.pixel_clock = DEFAULT_PIXEL_CLOCK;
   cam_params_.ext_trigger_mode = false;
   cam_params_.flash_delay = 0;
@@ -434,21 +436,16 @@ INT UEyeCamNodelet::parseROSParams(ros::NodeHandle& local_nh) {
       }
     }
   }
-  cam_params_.output_rate = cam_params_.frame_rate;
-  
   if (local_nh.hasParam("output_rate")) {
     local_nh.getParam("output_rate", cam_params_.output_rate);
-    if (cam_params_.output_rate != prevCamParams.output_rate) {
-      if (cam_params_.output_rate <= 0.0) {
-        WARN_STREAM("Invalid requested output rate for [" << cam_name_ << "]: " <<
-          cam_params_.output_rate <<
-          "; using current frame rate: " << prevCamParams.output_rate);
-        cam_params_.output_rate = prevCamParams.output_rate;
-      } 
-      else {
-        cam_params_.output_rate = std::min( cam_params_.frame_rate, cam_params_.output_rate );
-        hasNewParams = true;
-      }
+    if (cam_params_.output_rate < 0.0) {
+      WARN_STREAM("Invalid requested output rate for [" << cam_name_ << "]: " <<
+        cam_params_.output_rate <<
+        "; disable publisher throttling by default");
+        cam_params_.output_rate = 0;
+    } else {
+      cam_params_.output_rate = std::min(cam_params_.frame_rate, cam_params_.output_rate);
+      // hasNewParams = true; // No need to re-allocate buffer memory or reconfigure camera parameters
     }
   }
   if (local_nh.hasParam("pixel_clock")) {
@@ -616,6 +613,18 @@ void UEyeCamNodelet::configCallback(ueye_cam::UEyeCamConfig& config, uint32_t le
   if (config.auto_frame_rate != cam_params_.auto_frame_rate ||
       config.frame_rate != cam_params_.frame_rate) {
     if (setFrameRate(config.auto_frame_rate, config.frame_rate) != IS_SUCCESS) return;
+  }
+  
+  if (config.output_rate != cam_params_.output_rate) {
+    if (!config.auto_frame_rate) {
+      config.output_rate = std::min(config.output_rate, config.frame_rate);
+    } // else, auto-fps is enabled, so don't bother checking validity of user-specified config.output_rate
+
+    // Reset reference time for publisher throttle
+    output_rate_mutex_.lock();
+    init_publish_time_ = ros::Time(0);
+    prev_output_frame_idx_ = 0;
+    output_rate_mutex_.unlock();
   }
 
   if (config.auto_exposure != cam_params_.auto_exposure ||
@@ -903,8 +912,6 @@ void UEyeCamNodelet::frameGrabLoop() {
   DEBUG_STREAM("Starting threaded frame grabber loop for [" << cam_name_ << "]");
 
   ros::Rate idleDelay(200);
-  int output_frame_count=1;
-  ros::Time output_time_origin(0);
 
   int prevNumSubscribers = 0;
   int currNumSubscribers = 0;
@@ -913,6 +920,12 @@ void UEyeCamNodelet::frameGrabLoop() {
     // and stop live video mode if ROS image topic no longer has any subscribers
     currNumSubscribers = ros_cam_pub_.getNumSubscribers();
     if (currNumSubscribers > 0 && prevNumSubscribers <= 0) {
+      // Reset reference time to prevent throttling first frame
+      output_rate_mutex_.lock();
+      init_publish_time_ = ros::Time(0);
+      prev_output_frame_idx_ = 0;
+      output_rate_mutex_.unlock();
+      
       if (cam_params_.ext_trigger_mode) {
         if (setExtTriggerMode() != IS_SUCCESS) {
           ERROR_STREAM("Shutting down driver nodelet for [" << cam_name_ << "]");
@@ -971,6 +984,7 @@ void UEyeCamNodelet::frameGrabLoop() {
       INT eventTimeout = (cam_params_.auto_frame_rate || cam_params_.ext_trigger_mode) ?
           (INT) 2000 : (INT) (1000.0 / cam_params_.frame_rate * 2);
       if (processNextFrame(eventTimeout) != NULL) {
+        // Initialize/compute frame timestamp based on clock tick value from camera
         if (init_ros_time_.isZero()) {
           if(getClockTick(&init_clock_tick_)) {
             init_ros_time_ = getImageTimestamp();
@@ -981,6 +995,7 @@ void UEyeCamNodelet::frameGrabLoop() {
           }
         }
         ros_image_.header.stamp = ros_cam_info_.header.stamp = getImageTickTimestamp();
+        
         // Process new frame
 #ifdef DEBUG_PRINTOUT_FRAME_GRAB_RATES
         grabbedFrameCount++;
@@ -1004,14 +1019,24 @@ void UEyeCamNodelet::frameGrabLoop() {
 
         if (!frame_grab_alive_ || !ros::ok()) break;
         
-        if ( output_time_origin.is_zero() )
-          output_time_origin = ros_image_.header.stamp;
-        
-        float time_elapsed = ( ros_image_.header.stamp - output_time_origin ).toSec();
-        
-        // Only process and publish the frame if we're slower than the requested rate
-        if ( ( time_elapsed * cam_params_.output_rate ) < output_frame_count )
-          continue;
+        // Throttle publish rate
+        bool throttle_curr_frame = false;
+        output_rate_mutex_.lock();
+        if (!cam_params_.ext_trigger_mode && cam_params_.output_rate > 0) {
+          if (init_publish_time_.is_zero()) { // Set reference time 
+            init_publish_time_ = ros_image_.header.stamp;
+          } else {
+            double time_elapsed = (ros_image_.header.stamp - init_publish_time_).toSec();
+            uint64_t curr_output_frame_idx = std::floor(time_elapsed * cam_params_.output_rate);
+            if (curr_output_frame_idx <= prev_output_frame_idx_) {
+              throttle_curr_frame = true;
+            } else {
+              prev_output_frame_idx_ = curr_output_frame_idx;
+            }
+          }
+        }
+        output_rate_mutex_.unlock();
+        if (throttle_curr_frame) continue;
 
         ros_cam_info_.width = cam_params_.image_width / cam_sensor_scaling_rate_ / cam_binning_rate_;
         ros_cam_info_.height = cam_params_.image_height / cam_sensor_scaling_rate_ / cam_binning_rate_;
@@ -1046,7 +1071,6 @@ void UEyeCamNodelet::frameGrabLoop() {
         if (!frame_grab_alive_ || !ros::ok()) break;
 
         ros_cam_pub_.publish(ros_image_, ros_cam_info_); 
-        output_frame_count += 1;
       }
     }
 

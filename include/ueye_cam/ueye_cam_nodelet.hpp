@@ -188,8 +188,12 @@ protected:
   std::string cam_params_filename_; // should be valid UEye INI file
   ueye_cam::UEyeCamConfig cam_params_;
   
-  ros::Time init_ros_time_;
+  ros::Time init_ros_time_; // for processing frames
   uint64_t init_clock_tick_;
+  
+  ros::Time init_publish_time_; // for throttling frames from being published (see cfg.output_rate)
+  uint64_t prev_output_frame_idx_; // see init_publish_time_
+  boost::mutex output_rate_mutex_;
 };
 
 
