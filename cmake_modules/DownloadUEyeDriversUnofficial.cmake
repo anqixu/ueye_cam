@@ -22,10 +22,10 @@ function(download_ueye_drivers UEYE_LIBRARY_VAR UEYE_INCLUDE_DIR_VAR UEYE_DRIVER
     target_architecture(UEYE_ARCH)
     if (UEYE_ARCH STREQUAL "x86_64")
       set (UEYE_ARCH "amd64")
-    elseif (UEYE_ARCH STREQUAL "armv6")
+    elseif ((UEYE_ARCH STREQUAL "armv5") OR (UEYE_ARCH STREQUAL "armv6") OR (UEYE_ARCH STREQUAL "armv7"))
       set (UEYE_ARCH "arm")
-    elseif (UEYE_ARCH STREQUAL "armv7")
-      set (UEYE_ARCH "arm")
+    elseif (UEYE_ARCH STREQUAL "aarch64")
+      set (UEYE_ARCH "arm64")
     endif ()
     
     # Set download path (credits due to ueye ROS package developers)
@@ -37,6 +37,9 @@ function(download_ueye_drivers UEYE_LIBRARY_VAR UEYE_INCLUDE_DIR_VAR UEYE_DRIVER
       set (UEYE_DRIVER_URL http://download.ros.org/data/ueye/uEye_SDK_4_61_i386.tar.gz)
       set (UEYE_DRIVER_MD5 b1e5a2d46a83fda17bc7a4cfc8ab4998)
     elseif (UEYE_ARCH STREQUAL "arm")
+      set (UEYE_DRIVER_URL http://download.ros.org/data/ueye/uEye_SDK_4_61_armhf.tar.gz)
+      set (UEYE_DRIVER_MD5 11983f3d1096f452fc8f268665875f27)
+    elseif (UEYE_ARCH STREQUAL "arm64") # temp hack due to no official 64-bit ARM SDK from IDS
       set (UEYE_DRIVER_URL http://download.ros.org/data/ueye/uEye_SDK_4_61_armhf.tar.gz)
       set (UEYE_DRIVER_MD5 11983f3d1096f452fc8f268665875f27)
     else ()
