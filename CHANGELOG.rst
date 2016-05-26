@@ -2,8 +2,8 @@
 Changelog for package ueye_cam
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.0.14 (2016-05-26)
+-------------------
 * now attempting to link against 32-bit ARMHF IDS libs on ARM64 arch
 * added capability to detect ARM64 processor (aarch64)
 * added separate rates for polling frames vs publishing images 
