@@ -2,6 +2,15 @@
 Changelog for package ueye_cam
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* now attempting to link against 32-bit ARMHF IDS libs on ARM64 arch
+* added capability to detect ARM64 processor (aarch64)
+* added separate rates for polling frames vs publishing images 
+* fixed buffersize for subsampling and increased maximum image size availible via rqt
+* added Travis CI config
+* Contributors: Anqi Xu, Eddy, Isaac I.Y. Saito, francois
+
 1.0.13 (2016-05-13)
 -------------------
 * Change timestamp source based on issue https://github.com/anqixu/ueye_cam/issues/37
