@@ -39,9 +39,6 @@ function(download_ueye_drivers UEYE_LIBRARY_VAR UEYE_INCLUDE_DIR_VAR UEYE_DRIVER
     elseif (UEYE_ARCH STREQUAL "arm")
       set (UEYE_DRIVER_URL http://download.ros.org/data/ueye/uEye_SDK_4_61_armhf.tar.gz)
       set (UEYE_DRIVER_MD5 11983f3d1096f452fc8f268665875f27)
-    elseif (UEYE_ARCH STREQUAL "arm64") # temp hack due to no official 64-bit ARM SDK from IDS
-      set (UEYE_DRIVER_URL http://download.ros.org/data/ueye/uEye_SDK_4_61_armhf.tar.gz)
-      set (UEYE_DRIVER_MD5 11983f3d1096f452fc8f268665875f27)
     else ()
       message(FATAL_ERROR "The system's architecture, ${UEYE_ARCH}, is not supported currently by IDS / this ROS package.")
       message(FATAL_ERROR "Internal debugging: CMAKE_SYSTEM_PROCESSOR=${CMAKE_SYSTEM_PROCESSOR}, CMAKE_SYSTEM_NAME=${CMAKE_SYSTEM_NAME}")
