@@ -411,6 +411,9 @@ protected:
    * \return IS_SUCCESS if successful, error flag otherwise (see err2str).
    */
   virtual INT syncCamConfig(std::string dft_mode_str = "mono8");
+  
+  
+  virtual void handleTimeout() {};
 
 
   /**

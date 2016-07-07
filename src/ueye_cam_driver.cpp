@@ -949,6 +949,7 @@ const char* UEyeCamDriver::processNextFrame(INT timeout_ms) {
       ERROR_STREAM("Timed out while acquiring image from [" << cam_name_ <<
         "] (" << err2str(is_err) << ")");
       ERROR_STREAM("If this is occurring frequently, see https://github.com/anqixu/ueye_cam/issues/6#issuecomment-49925549");
+      handleTimeout();
     } else {
       ERROR_STREAM("Failed to acquire image from [" << cam_name_ <<
         "] (" << err2str(is_err) << ")");

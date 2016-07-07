@@ -49,6 +49,7 @@
 #include <cstdlib> // needed for getenv()
 #include <ros/package.h>
 #include <camera_calibration_parsers/parse.h>
+#include <std_msgs/UInt64.h>
 #include <sensor_msgs/fill_image.h>
 #include <sensor_msgs/image_encodings.h>
 
@@ -66,6 +67,7 @@ namespace ueye_cam {
 const std::string UEyeCamNodelet::DEFAULT_FRAME_NAME = "camera";
 const std::string UEyeCamNodelet::DEFAULT_CAMERA_NAME = "camera";
 const std::string UEyeCamNodelet::DEFAULT_CAMERA_TOPIC = "image_raw";
+const std::string UEyeCamNodelet::DEFAULT_TIMEOUT_TOPIC = "timeout_count";
 const std::string UEyeCamNodelet::DEFAULT_COLOR_MODE = "";
 constexpr int UEyeCamDriver::ANY_CAMERA; // Needed since CMakeLists.txt creates 2 separate libraries: one for non-ROS parent class, and one for ROS child class
 
@@ -78,7 +80,9 @@ UEyeCamNodelet::UEyeCamNodelet() :
     ros_cfg_(NULL),
     cfg_sync_requested_(false),
     ros_frame_count_(0),
+    timeout_count_(0),
     cam_topic_(DEFAULT_CAMERA_TOPIC),
+    timeout_topic_(DEFAULT_TIMEOUT_TOPIC),
     cam_intr_filename_(""),
     cam_params_filename_(""),
     init_publish_time_(0),
@@ -136,6 +140,7 @@ void UEyeCamNodelet::onInit() {
   local_nh.param<string>("camera_name", cam_name_, DEFAULT_CAMERA_NAME);
   local_nh.param<string>("frame_name", frame_name_, DEFAULT_FRAME_NAME);
   local_nh.param<string>("camera_topic", cam_topic_, DEFAULT_CAMERA_TOPIC);
+  local_nh.param<string>("timeout_topic", timeout_topic_, DEFAULT_CAMERA_TOPIC);
   local_nh.param<string>("camera_intrinsics_file", cam_intr_filename_, "");
   local_nh.param<int>("camera_id", cam_id_, ANY_CAMERA);
   local_nh.param<string>("camera_parameters_file", cam_params_filename_, "");
@@ -156,6 +161,7 @@ void UEyeCamNodelet::onInit() {
   ros_cam_pub_ = it.advertiseCamera(cam_name_ + "/" + cam_topic_, 1);
   set_cam_info_srv_ = nh.advertiseService(cam_name_ + "/set_camera_info",
       &UEyeCamNodelet::setCamInfo, this);
+  timeout_pub_ = nh.advertise<std_msgs::UInt64>(cam_name_ + "/" + timeout_topic_, 1);
 
   // Initiate camera and start capture
   if (connectCam() != IS_SUCCESS) {
@@ -1144,6 +1150,14 @@ ros::Time UEyeCamNodelet::getImageTickTimestamp() {
   return ros::Time::now();
 }
 // TODO: 0 bug where nodelet locks and requires SIGTERM when there are still subscribers (need to find where does code hang)
+
+
+void UEyeCamNodelet::handleTimeout() {
+  std_msgs::UInt64 msg;
+  msg.data = ++timeout_count_;
+  timeout_pub_.publish(msg);
+};
+
 
 } // namespace ueye_cam
 
