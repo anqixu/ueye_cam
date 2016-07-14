@@ -728,6 +728,9 @@ INT UEyeCamDriver::setPixelClockRate(INT& clock_rate_mhz) {
   int minPixelClock = (int) pixelClockList[0];
   int maxPixelClock = (int) pixelClockList[numberOfSupportedPixelClocks-1];
   CAP(clock_rate_mhz, minPixelClock, maxPixelClock);
+  
+  for (int i = 0; i < numberOfSupportedPixelClocks; ++i)
+    ERROR_STREAM("pixel clock " << i << ": " << pixelClockList[i]); // TODO: remove
 
   // As list is sorted smallest to largest...
   for(UINT i = 0; i < numberOfSupportedPixelClocks; i++) {

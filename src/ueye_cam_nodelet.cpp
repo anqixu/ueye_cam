@@ -140,7 +140,7 @@ void UEyeCamNodelet::onInit() {
   local_nh.param<string>("camera_name", cam_name_, DEFAULT_CAMERA_NAME);
   local_nh.param<string>("frame_name", frame_name_, DEFAULT_FRAME_NAME);
   local_nh.param<string>("camera_topic", cam_topic_, DEFAULT_CAMERA_TOPIC);
-  local_nh.param<string>("timeout_topic", timeout_topic_, DEFAULT_CAMERA_TOPIC);
+  local_nh.param<string>("timeout_topic", timeout_topic_, DEFAULT_TIMEOUT_TOPIC);
   local_nh.param<string>("camera_intrinsics_file", cam_intr_filename_, "");
   local_nh.param<int>("camera_id", cam_id_, ANY_CAMERA);
   local_nh.param<string>("camera_parameters_file", cam_params_filename_, "");
@@ -161,7 +161,8 @@ void UEyeCamNodelet::onInit() {
   ros_cam_pub_ = it.advertiseCamera(cam_name_ + "/" + cam_topic_, 1);
   set_cam_info_srv_ = nh.advertiseService(cam_name_ + "/set_camera_info",
       &UEyeCamNodelet::setCamInfo, this);
-  timeout_pub_ = nh.advertise<std_msgs::UInt64>(cam_name_ + "/" + timeout_topic_, 1);
+  timeout_pub_ = nh.advertise<std_msgs::UInt64>(cam_name_ + "/" + timeout_topic_, 1, true);
+  std_msgs::UInt64 timeout_msg; timeout_msg.data = 0; timeout_pub_.publish(timeout_msg);
 
   // Initiate camera and start capture
   if (connectCam() != IS_SUCCESS) {
@@ -1153,9 +1154,9 @@ ros::Time UEyeCamNodelet::getImageTickTimestamp() {
 
 
 void UEyeCamNodelet::handleTimeout() {
-  std_msgs::UInt64 msg;
-  msg.data = ++timeout_count_;
-  timeout_pub_.publish(msg);
+  std_msgs::UInt64 timeout_msg;
+  timeout_msg.data = ++timeout_count_;
+  timeout_pub_.publish(timeout_msg);
 };
 
 
