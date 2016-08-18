@@ -34,7 +34,7 @@ www.ros.org/wiki/ueye_cam
 
 
 
-Copyright (c) 2013, Anqi Xu
+Copyright (c) 2013-2016, Anqi Xu and contributors
 
 All rights reserved.
 
