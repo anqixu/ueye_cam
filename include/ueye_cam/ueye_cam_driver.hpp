@@ -50,8 +50,11 @@
 
 
 #include <ueye.h>
+#include <sensor_msgs/Image.h>
+#include <sensor_msgs/image_encodings.h>
 #include <string>
 #include <thread>
+#include <functional>
 #include "logging_macros.hpp"
 
 
@@ -374,17 +377,47 @@ public:
    * Stringifies UEye API error flag.
    */
   const static char* err2str(INT error);
-  
+
   /**
    * Stringifies UEye color mode flag.
    */
   const static char* colormode2str(INT mode);
 
   /**
+   * translates UEye color mode flag to target ROS image encoding.
+   */
+  const static std::string colormode2img_enc(INT mode);
+
+  /**
+   *  bits per pixel attribute of UEye color mode flag
+   */
+  const static INT colormode2bpp(INT mode);
+
+  /**
+   *  check if this driver supports the chosen UEye color mode
+   */
+  const static bool isSupportedColormode(INT mode);
+
+  /**
+   * translates ROS name to UEye color mode flag or the other way round.
+   */
+  const static INT name2colormode(const std::string& name);
+  const static std::string colormode2name(INT mode);
+
+  /**
+   * returns the proper transfer function to translate and copy the camera format
+   * pixel buffer either into an 8 or 16 bit unsigned int per channel format.
+   */
+  const static std::function<void*(void*, void*, size_t)> getUnpackCopyFunc(INT color_mode);
+  static void* unpackRGB10(void* dst, void* src, size_t num);
+  static void* unpack10u(void* dst, void* src, size_t num);
+  static void* unpack12u(void* dst, void* src, size_t num);
+
+  /**
    * Sets a timestamp indicating the moment of the image capture
    */
   bool getTimestamp(UEYETIME *timestamp);
-  
+
   /**
    * Sets a clock tick indicating the moment of the image capture
    */
@@ -392,6 +425,14 @@ public:
 
 
 protected:
+
+  /**
+   * Transfers the current frame content into given sensor_msgs::Image,
+   * therefore writes the fields width, height, encoding, step and
+   * data of img.
+   */
+  bool fillMsgData(sensor_msgs::Image& img) const;
+
   /**
    * Queries current camera handle's configuration (color mode,
    * (area of interest / resolution, sensor scaling rate, subsampling rate,
@@ -411,8 +452,8 @@ protected:
    * \return IS_SUCCESS if successful, error flag otherwise (see err2str).
    */
   virtual INT syncCamConfig(std::string dft_mode_str = "mono8");
-  
-  
+
+
   virtual void handleTimeout() {};
 
 
@@ -423,6 +464,9 @@ protected:
    * \return IS_SUCCESS if successful, error flag otherwise (see err2str).
    */
   INT reallocateCamBuffer();
+
+  const static std::map<INT, std::string> ENCODING_DICTIONARY;
+  const static std::map<std::string, INT> COLOR_DICTIONARY;
 
   HIDS cam_handle_;
   SENSORINFO cam_sensor_info_;
@@ -436,6 +480,7 @@ protected:
   unsigned int cam_subsampling_rate_;
   unsigned int cam_binning_rate_;
   double cam_sensor_scaling_rate_;
+  INT color_mode_;
   INT bits_per_pixel_;
 };
 
