@@ -22,7 +22,6 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   nodelet
   dynamic_reconfigure
-  cv_bridge
   image_transport
   sensor_msgs
   camera_calibration_parsers
@@ -77,8 +76,7 @@ generate_dynamic_reconfigure_options(
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${UEYECAM_LIB_NAME} ${UEYECAM_NODELET_NAME}
-  CATKIN_DEPENDS roscpp nodelet dynamic_reconfigure cv_bridge image_transport sensor_msgs camera_calibration_parsers camera_info_manager
-  DEPENDS OpenCV
+  CATKIN_DEPENDS roscpp nodelet dynamic_reconfigure image_transport sensor_msgs camera_calibration_parsers camera_info_manager
   )
 
 include_directories(
@@ -89,7 +87,7 @@ include_directories(
 
 
 add_library(${UEYECAM_LIB_NAME} ${UEYECAM_LIB_SOURCES} ${UEYECAM_LIB_HEADERS})
-target_link_libraries(${UEYECAM_LIB_NAME} ${UEYE_LIBRARY})
+target_link_libraries(${UEYECAM_LIB_NAME} ${catkin_LIBRARIES} ${UEYE_LIBRARY})
 
 add_library(${UEYECAM_NODELET_NAME} ${UEYECAM_NODELET_SOURCES} ${UEYECAM_NODELET_HEADERS})
 target_link_libraries(${UEYECAM_NODELET_NAME} ${catkin_LIBRARIES} ${UEYECAM_LIB_NAME})
@@ -104,6 +102,13 @@ target_link_libraries(check_ueye_api ${catkin_LIBRARIES} ${UEYECAM_LIB_NAME})
 #  install(FILES ${UEYE_LIBRARY} ${UNOFFICIAL_UEYE_DRIVERS_LIB_REALPATH}
 #    DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
 #endif()
+
+# Mark cpp header files for installation
+install(DIRECTORY include/${PROJECT_NAME}/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+  FILES_MATCHING PATTERN "*.h"
+  PATTERN ".svn" EXCLUDE
+)
 
 install(TARGETS ${UEYECAM_LIB_NAME} ${UEYECAM_NODELET_NAME}
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
