@@ -159,6 +159,14 @@ protected:
   void startFrameGrabber();
   void stopFrameGrabber();
 
+  const static std::map<INT, std::string> ENCODING_DICTIONARY;
+  /**
+   * Transfers the current frame content into given sensor_msgs::Image,
+   * therefore writes the fields width, height, encoding, step and
+   * data of img.
+   */
+  bool fillMsgData(sensor_msgs::Image& img) const;
+
   /**
    * Returns image's timestamp or current wall time if driver call fails.
    */

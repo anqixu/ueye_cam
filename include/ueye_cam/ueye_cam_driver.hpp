@@ -50,8 +50,6 @@
 
 
 #include <ueye.h>
-#include <sensor_msgs/Image.h>
-#include <sensor_msgs/image_encodings.h>
 #include <string>
 #include <thread>
 #include <functional>
@@ -425,14 +423,6 @@ public:
 
 
 protected:
-
-  /**
-   * Transfers the current frame content into given sensor_msgs::Image,
-   * therefore writes the fields width, height, encoding, step and
-   * data of img.
-   */
-  bool fillMsgData(sensor_msgs::Image& img) const;
-
   /**
    * Queries current camera handle's configuration (color mode,
    * (area of interest / resolution, sensor scaling rate, subsampling rate,
@@ -465,7 +455,6 @@ protected:
    */
   INT reallocateCamBuffer();
 
-  const static std::map<INT, std::string> ENCODING_DICTIONARY;
   const static std::map<std::string, INT> COLOR_DICTIONARY;
 
   HIDS cam_handle_;

@@ -954,51 +954,6 @@ const char* UEyeCamDriver::processNextFrame(INT timeout_ms) {
 }
 
 
-bool UEyeCamDriver::fillMsgData(sensor_msgs::Image& img) const {
-  // Copy pixel content from internal frame buffer to img
-  // and unpack to proper pixel format
-  INT expected_row_stride = cam_aoi_.s32Width * bits_per_pixel_/8;
-  if (cam_buffer_pitch_ < expected_row_stride) {
-    ERROR_STREAM("Camera buffer pitch (" << cam_buffer_pitch_ <<
-        ") is smaller than expected for [" << cam_name_ << "]: " <<
-        "width (" << cam_aoi_.s32Width << ") * bytes per pixel (" <<
-        bits_per_pixel_/8 << ") = " << expected_row_stride);
-    return false;
-  }
-
-  // allocate target memory
-  img.width = cam_aoi_.s32Width;
-  img.height = cam_aoi_.s32Height;
-  img.encoding = ENCODING_DICTIONARY.at(color_mode_);
-  img.step = img.width * sensor_msgs::image_encodings::numChannels(img.encoding) * sensor_msgs::image_encodings::bitDepth(img.encoding)/8;
-  img.data.resize(img.height * img.step);
-
-  DEBUG_STREAM("Allocated ROS image buffer for [" << cam_name_ << "]:" <<
-      "\n  size: " << cam_buffer_size_ <<
-      "\n  width: " << img.width <<
-      "\n  height: " << img.height <<
-      "\n  step: " << img.step <<
-      "\n  encoding: " << img.encoding);
-
-  const std::function<void*(void*, void*, size_t)> unpackCopy = getUnpackCopyFunc(color_mode_);
-
-  if (cam_buffer_pitch_ == expected_row_stride) {
-    // Content is contiguous, so copy out the entire buffer at once
-    unpackCopy(img.data.data(), cam_buffer_, img.height*expected_row_stride);
-  } else { // cam_buffer_pitch_ > expected_row_stride
-    // Each row contains extra buffer according to cam_buffer_pitch_, so must copy out each row independently
-    uint8_t* dst_ptr = img.data.data();
-    char* cam_buffer_ptr = cam_buffer_;
-    for (INT row = 0; row < cam_aoi_.s32Height; row++) {
-      unpackCopy(dst_ptr, cam_buffer_ptr, expected_row_stride);
-      cam_buffer_ptr += cam_buffer_pitch_;
-      dst_ptr += img.step;
-    }
-  }
-  return true;
-}
-
-
 INT UEyeCamDriver::syncCamConfig(string dft_mode_str) {
   INT is_err = IS_SUCCESS;
 
@@ -1397,25 +1352,6 @@ const bool UEyeCamDriver::isSupportedColormode(INT mode) {
       return false;
   }
 }
-
-const std::map<INT, std::string> UEyeCamDriver::ENCODING_DICTIONARY = {
-    { IS_CM_SENSOR_RAW8, sensor_msgs::image_encodings::BAYER_RGGB8 },
-	{ IS_CM_SENSOR_RAW10, sensor_msgs::image_encodings::BAYER_RGGB16 },
-	{ IS_CM_SENSOR_RAW12, sensor_msgs::image_encodings::BAYER_RGGB16 },
-	{ IS_CM_SENSOR_RAW16, sensor_msgs::image_encodings::BAYER_RGGB16 },
-    { IS_CM_MONO8, sensor_msgs::image_encodings::MONO8 },
-    { IS_CM_MONO10, sensor_msgs::image_encodings::MONO16 },
-    { IS_CM_MONO12, sensor_msgs::image_encodings::MONO16 },
-    { IS_CM_MONO16, sensor_msgs::image_encodings::MONO16 },
-    { IS_CM_RGB8_PACKED, sensor_msgs::image_encodings::RGB8 },
-    { IS_CM_BGR8_PACKED, sensor_msgs::image_encodings::BGR8 },
-    { IS_CM_RGB10_PACKED, sensor_msgs::image_encodings::RGB16 },
-    { IS_CM_BGR10_PACKED, sensor_msgs::image_encodings::BGR16 },
-    { IS_CM_RGB10_UNPACKED, sensor_msgs::image_encodings::RGB16 },
-    { IS_CM_BGR10_UNPACKED, sensor_msgs::image_encodings::BGR16 },
-    { IS_CM_RGB12_UNPACKED, sensor_msgs::image_encodings::RGB16 },
-    { IS_CM_BGR12_UNPACKED, sensor_msgs::image_encodings::BGR16 }
-};
 
 const std::map<std::string, INT> UEyeCamDriver::COLOR_DICTIONARY = {
     { "bayer_rggb8", IS_CM_SENSOR_RAW8 },
