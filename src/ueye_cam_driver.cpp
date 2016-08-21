@@ -15,7 +15,7 @@
 *
 * SOFTWARE LICENSE AGREEMENT (BSD LICENSE):
 *
-* Copyright (c) 2013, Anqi Xu
+* Copyright (c) 2013-2016, Anqi Xu and contributors
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -211,7 +211,7 @@ INT UEyeCamDriver::setColorMode(string mode, bool reallocate_buffer) {
 
   // Set to specified color mode
   color_mode_ = name2colormode(mode);
-  if (!isSupportedColormode(color_mode_)) {
+  if (!isSupportedColorMode(color_mode_)) {
     WARN_STREAM("Could not set color mode of [" << cam_name_
         << "] to " << mode << " (not supported by this wrapper). "
         << "switching to default mode: mono8");
@@ -965,7 +965,7 @@ INT UEyeCamDriver::syncCamConfig(string dft_mode_str) {
     return is_err;
   }
   color_mode_ = is_SetColorMode(cam_handle_, IS_GET_COLOR_MODE);
-  if (!isSupportedColormode(color_mode_)) {
+  if (!isSupportedColorMode(color_mode_)) {
     WARN_STREAM("Current color mode (IDS format: " << colormode2str(color_mode_)
         << ") for [" << cam_name_ << "] is not supported by this wrapper; "
         //<< "supported modes: {mono8 | mono10 | mono12 | mono16 | bayer_rggb8 | rgb8 | bgr8 | rgb10 | bgr10 | rgb10u | bgr10u | rgb12u | bgr12u}; "
@@ -1089,7 +1089,7 @@ INT UEyeCamDriver::reallocateCamBuffer() {
   }
   if (cam_buffer_pitch_ < cam_aoi_.s32Width * bits_per_pixel_/8) {
     ERROR_STREAM("Frame buffer's queried step size (" << cam_buffer_pitch_ <<
-      ") is smaller than buffer's expected width (" << cam_aoi_.s32Width << ") for [" << cam_name_ <<
+      ") is smaller than buffer's expected stride [= width (" << cam_aoi_.s32Width << ") * bits per pixel (" << bits_per_pixel_ << ") /8] for [" << cam_name_ <<
       "]\n(THIS IS A CODING ERROR, PLEASE CONTACT PACKAGE AUTHOR)");
   }
   cam_buffer_size_ = cam_buffer_pitch_ * cam_aoi_.s32Height;
@@ -1272,6 +1272,7 @@ const char* UEyeCamDriver::colormode2str(INT mode) {
 #undef CASE
 }
 
+
 const INT UEyeCamDriver::colormode2bpp(INT mode) {
   switch (mode) {
     case IS_CM_SENSOR_RAW8:
@@ -1309,13 +1310,14 @@ const INT UEyeCamDriver::colormode2bpp(INT mode) {
     case IS_CM_RGBA12_UNPACKED:
     case IS_CM_BGRA12_UNPACKED:
       return 64;
-// 	  case IS_CM_JPEG:
+//   case IS_CM_JPEG:
     default:
       return 0;
   }
 }
 
-const bool UEyeCamDriver::isSupportedColormode(INT mode) {
+
+const bool UEyeCamDriver::isSupportedColorMode(INT mode) {
   switch (mode) {
     case IS_CM_SENSOR_RAW8:
     case IS_CM_SENSOR_RAW10:
@@ -1336,28 +1338,29 @@ const bool UEyeCamDriver::isSupportedColormode(INT mode) {
     case IS_CM_BGR12_UNPACKED:
       return true;
 //    case IS_CM_BGR5_PACKED:
-// 	  case IS_CM_BGR565_PACKED:
-// 	  case IS_CM_UYVY_PACKED:
-// 	  case IS_CM_UYVY_MONO_PACKED:
-// 	  case IS_CM_UYVY_BAYER_PACKED:
-// 	  case IS_CM_CBYCRY_PACKED:
-// 	  case IS_CM_RGBA8_PACKED:
-// 	  case IS_CM_BGRA8_PACKED:
-// 	  case IS_CM_RGBY8_PACKED:
-// 	  case IS_CM_BGRY8_PACKED:
-// 	  case IS_CM_RGBA12_UNPACKED:
-// 	  case IS_CM_BGRA12_UNPACKED:
-// 	  case IS_CM_JPEG:
+//    case IS_CM_BGR565_PACKED:
+//    case IS_CM_UYVY_PACKED:
+//    case IS_CM_UYVY_MONO_PACKED:
+//    case IS_CM_UYVY_BAYER_PACKED:
+//    case IS_CM_CBYCRY_PACKED:
+//    case IS_CM_RGBA8_PACKED:
+//    case IS_CM_BGRA8_PACKED:
+//    case IS_CM_RGBY8_PACKED:
+//    case IS_CM_BGRY8_PACKED:
+//    case IS_CM_RGBA12_UNPACKED:
+//    case IS_CM_BGRA12_UNPACKED:
+//    case IS_CM_JPEG:
     default:
       return false;
   }
 }
 
+
 const std::map<std::string, INT> UEyeCamDriver::COLOR_DICTIONARY = {
     { "bayer_rggb8", IS_CM_SENSOR_RAW8 },
-	{ "bayer_rggb10", IS_CM_SENSOR_RAW10 },
-	{ "bayer_rggb12", IS_CM_SENSOR_RAW12 },
-	{ "bayer_rggb16", IS_CM_SENSOR_RAW16 },
+    { "bayer_rggb10", IS_CM_SENSOR_RAW10 },
+    { "bayer_rggb12", IS_CM_SENSOR_RAW12 },
+    { "bayer_rggb16", IS_CM_SENSOR_RAW16 },
     { "mono8", IS_CM_MONO8 },
     { "mono10", IS_CM_MONO10 },
     { "mono12", IS_CM_MONO12 },
@@ -1372,6 +1375,7 @@ const std::map<std::string, INT> UEyeCamDriver::COLOR_DICTIONARY = {
     { "bgr12u", IS_CM_BGR12_UNPACKED }
 };
 
+
 const INT UEyeCamDriver::name2colormode(const std::string& name) {
   const std::map<std::string, INT>::const_iterator iter = COLOR_DICTIONARY.find(name);
   if (iter!=COLOR_DICTIONARY.end()) {
@@ -1382,6 +1386,7 @@ const INT UEyeCamDriver::name2colormode(const std::string& name) {
   }
 }
 
+
 const std::string UEyeCamDriver::colormode2name(INT mode) {
   for (const std::pair<std::string, INT>& value: COLOR_DICTIONARY) {
     if (value.second == mode) {
@@ -1390,6 +1395,7 @@ const std::string UEyeCamDriver::colormode2name(INT mode) {
   }
   return std::string();
 }
+
 
 const std::function<void*(void*, void*, size_t)> UEyeCamDriver::getUnpackCopyFunc(INT color_mode) {
   switch (color_mode) {
@@ -1410,6 +1416,7 @@ const std::function<void*(void*, void*, size_t)> UEyeCamDriver::getUnpackCopyFun
       return memcpy;
   }
 }
+
 
 void* UEyeCamDriver::unpackRGB10(void* dst, void* src, size_t num) {
   // UEye Driver 4.80.2 Linux 64 bit:
@@ -1432,11 +1439,12 @@ void* UEyeCamDriver::unpackRGB10(void* dst, void* src, size_t num) {
     pixel >>= 10;
     to[2] = pixel;
     to[2] &= 0b1111111111000000;
-    to+=3;;
+    to+=3;
     ++from;
   }
   return dst;
 }
+
 
 void* UEyeCamDriver::unpack10u(void* dst, void* src, size_t num) {
   // UEye Driver 4.80.2 Linux 64 bit:
@@ -1454,6 +1462,7 @@ void* UEyeCamDriver::unpack10u(void* dst, void* src, size_t num) {
   return dst;
 }
 
+
 void* UEyeCamDriver::unpack12u(void* dst, void* src, size_t num) {
   // UEye Driver 4.80.2 Linux 64 bit:
   // pixel format seems to be
@@ -1470,6 +1479,7 @@ void* UEyeCamDriver::unpack12u(void* dst, void* src, size_t num) {
   return dst;
 }
 
+
 bool UEyeCamDriver::getTimestamp(UEYETIME *timestamp) {
   UEYEIMAGEINFO ImageInfo;
   if(is_GetImageInfo (cam_handle_, cam_buffer_id_, &ImageInfo, sizeof (ImageInfo)) == IS_SUCCESS) {
@@ -1478,6 +1488,7 @@ bool UEyeCamDriver::getTimestamp(UEYETIME *timestamp) {
   }
   return false;
 }
+
 
 bool UEyeCamDriver::getClockTick(uint64_t *tick) {
   UEYEIMAGEINFO ImageInfo;

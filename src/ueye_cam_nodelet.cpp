@@ -15,7 +15,7 @@
 *
 * SOFTWARE LICENSE AGREEMENT (BSD LICENSE):
 *
-* Copyright (c) 2013, Anqi Xu
+* Copyright (c) 2013-2016, Anqi Xu and contributors
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -88,7 +88,7 @@ UEyeCamNodelet::UEyeCamNodelet():
     init_clock_tick_(0),
     init_publish_time_(0),
     prev_output_frame_idx_(0) {
-  ros_image_.is_bigendian = (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__); // todo: what about  MS Windows?
+  ros_image_.is_bigendian = (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__); // TODO: what about MS Windows?
   cam_params_.image_width = DEFAULT_IMAGE_WIDTH;
   cam_params_.image_height = DEFAULT_IMAGE_HEIGHT;
   cam_params_.image_left = -1;
@@ -259,10 +259,9 @@ INT UEyeCamNodelet::parseROSParams(ros::NodeHandle& local_nh) {
             cam_params_.color_mode.end(),
             cam_params_.color_mode.begin(),
             ::tolower);
-        if (name2colormode(cam_params_.color_mode)!=0) {
+        if (name2colormode(cam_params_.color_mode) != 0) {
           hasNewParams = true;
-        }
-        else {
+        } else {
           WARN_STREAM("Invalid requested color mode for [" << cam_name_
             << "]: " << cam_params_.color_mode
             << "; using current mode: " << prevCamParams.color_mode);
@@ -707,8 +706,8 @@ INT UEyeCamNodelet::syncCamConfig(string dft_mode_str) {
 
   // (Re-)populate ROS image message
   ros_image_.header.frame_id = "/" + frame_name_;
-  // note: .height, .width, .encoding, .step and .data determined in fillImgMsg()
-  // .is_bigendian determined in constructor
+  // NOTE: .height, .width, .encoding, .step and .data determined in fillImgMsg();
+  //       .is_bigendian determined in constructor
 
   return is_err;
 }
@@ -976,9 +975,10 @@ void UEyeCamNodelet::frameGrabLoop() {
       INT eventTimeout = (cam_params_.auto_frame_rate || cam_params_.ext_trigger_mode) ?
           (INT) 2000 : (INT) (1000.0 / cam_params_.frame_rate * 2);
       if (processNextFrame(eventTimeout) != NULL) {
-        // init shared pointers from member messages for nodelet intraprocess publishing
+        // Initialize shared pointers from member messages for nodelet intraprocess publishing
         sensor_msgs::ImagePtr img_msg_ptr(new sensor_msgs::Image(ros_image_));
         sensor_msgs::CameraInfoPtr cam_info_msg_ptr(new sensor_msgs::CameraInfo(ros_cam_info_));
+        
         // Initialize/compute frame timestamp based on clock tick value from camera
         if (init_ros_time_.isZero()) {
           if(getClockTick(&init_clock_tick_)) {
@@ -1075,9 +1075,9 @@ void UEyeCamNodelet::stopFrameGrabber() {
 
 const std::map<INT, std::string> UEyeCamNodelet::ENCODING_DICTIONARY = {
     { IS_CM_SENSOR_RAW8, sensor_msgs::image_encodings::BAYER_RGGB8 },
-	{ IS_CM_SENSOR_RAW10, sensor_msgs::image_encodings::BAYER_RGGB16 },
-	{ IS_CM_SENSOR_RAW12, sensor_msgs::image_encodings::BAYER_RGGB16 },
-	{ IS_CM_SENSOR_RAW16, sensor_msgs::image_encodings::BAYER_RGGB16 },
+    { IS_CM_SENSOR_RAW10, sensor_msgs::image_encodings::BAYER_RGGB16 },
+    { IS_CM_SENSOR_RAW12, sensor_msgs::image_encodings::BAYER_RGGB16 },
+    { IS_CM_SENSOR_RAW16, sensor_msgs::image_encodings::BAYER_RGGB16 },
     { IS_CM_MONO8, sensor_msgs::image_encodings::MONO8 },
     { IS_CM_MONO10, sensor_msgs::image_encodings::MONO16 },
     { IS_CM_MONO12, sensor_msgs::image_encodings::MONO16 },

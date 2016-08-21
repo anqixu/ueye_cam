@@ -15,7 +15,7 @@
 *
 * SOFTWARE LICENSE AGREEMENT (BSD LICENSE):
 *
-* Copyright (c) 2013, Anqi Xu
+* Copyright (c) 2013-2016, Anqi Xu and contributors
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -394,7 +394,7 @@ public:
   /**
    *  check if this driver supports the chosen UEye color mode
    */
-  const static bool isSupportedColormode(INT mode);
+  const static bool isSupportedColorMode(INT mode);
 
   /**
    * translates ROS name to UEye color mode flag or the other way round.

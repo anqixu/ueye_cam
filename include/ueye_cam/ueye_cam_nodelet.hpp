@@ -15,7 +15,7 @@
 *
 * SOFTWARE LICENSE AGREEMENT (BSD LICENSE):
 *
-* Copyright (c) 2013, Anqi Xu
+* Copyright (c) 2013-2016, Anqi Xu and contributors
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
