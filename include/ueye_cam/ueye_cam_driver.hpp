@@ -126,7 +126,7 @@ public:
    * internal frame buffer. This function will stop live capture
    * automatically if necessary.
    *
-   * \param mode Color mode string. Valid values: {"rgb8", "bgr8", "mono8", "bayer_rggb8"}.
+   * \param mode Color mode string. Valid values: see UEyeCamDriver::COLOR_DICTIONARY
    *   Certain values may not be available for a given camera model.
    * \param reallocate_buffer Whether to auto-reallocate buffer or not after
    *   changing parameter. If set to false, remember to reallocate_buffer
@@ -134,7 +134,7 @@ public:
    *
    * \return IS_SUCCESS if successful, error flag otherwise (see err2str).
    */
-  INT setColorMode(std::string mode, bool reallocate_buffer = true);
+  INT setColorMode(std::string& mode, bool reallocate_buffer = true);
 
   /**
    * Updates current camera handle's sensor resolution and area of interest.

@@ -201,7 +201,7 @@ INT UEyeCamDriver::loadCamConfig(string filename, bool ignore_load_failure) {
 }
 
 
-INT UEyeCamDriver::setColorMode(string mode, bool reallocate_buffer) {
+INT UEyeCamDriver::setColorMode(string& mode, bool reallocate_buffer) {
   if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
 
   INT is_err = IS_SUCCESS;
@@ -220,8 +220,15 @@ INT UEyeCamDriver::setColorMode(string mode, bool reallocate_buffer) {
   }
   if ((is_err = is_SetColorMode(cam_handle_, color_mode_)) != IS_SUCCESS) {
     ERROR_STREAM("Could not set color mode of [" << cam_name_ <<
-        "] to " << mode << " (" << err2str(is_err) << ": " << color_mode_ << ")");
-    return is_err;
+        "] to " << mode << " (" << err2str(is_err) << ": " << color_mode_ << " / '" << mode << "'). switching to default mode: mono8");
+        
+    color_mode_ = IS_CM_MONO8;
+    mode = "mono8";
+    if ((is_err = is_SetColorMode(cam_handle_, color_mode_)) != IS_SUCCESS) {
+      ERROR_STREAM("Could not set color mode of [" << cam_name_ <<
+          "] to " << mode << " (" << err2str(is_err) << ": " << color_mode_ << "/ " << mode << ")");
+      return is_err;
+    }
   }
   bits_per_pixel_ = colormode2bpp(color_mode_);
 
