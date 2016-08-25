@@ -2,8 +2,8 @@
 Changelog for package ueye_cam
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.0.15 (2016-08-25)
+-------------------
 * recover + update from failure in setColorMode
 * extended color modes (10, 12, 16 bit per channel)
 * added timeout topic for better debugging of frame timeouts
