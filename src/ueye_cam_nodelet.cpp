@@ -1046,6 +1046,9 @@ void UEyeCamNodelet::frameGrabLoop() {
 
         ros_cam_pub_.publish(img_msg_ptr, cam_info_msg_ptr);
       }
+    } else {
+        init_ros_time_ = ros::Time(0);
+        init_clock_tick_ = 0;
     }
 
     if (!frame_grab_alive_ || !ros::ok()) break;
