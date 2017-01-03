@@ -2,8 +2,8 @@
 Changelog for package ueye_cam
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.0.16 (2017-01-02)
+-------------------
 * fixed crash on camera reconnect
 * Contributors: Anqi Xu, Christopher Wecht
 
