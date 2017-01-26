@@ -113,6 +113,8 @@ UEyeCamNodelet::UEyeCamNodelet():
   cam_params_.output_rate = 0; // disable by default
   cam_params_.pixel_clock = DEFAULT_PIXEL_CLOCK;
   cam_params_.ext_trigger_mode = false;
+  cam_params_.gpio1 = 0;
+  cam_params_.gpio2 = 0;
   cam_params_.flash_delay = 0;
   cam_params_.flash_duration = DEFAULT_FLASH_DURATION;
   cam_params_.flip_upd = false;
@@ -405,6 +407,20 @@ INT UEyeCamNodelet::parseROSParams(ros::NodeHandle& local_nh) {
     //       modes come into effect during frame grab loop, which is assumed
     //       to not having been initialized yet
   }
+  if (local_nh.hasParam("gpio1")) {
+    local_nh.getParam("gpio1", cam_params_.gpio1);
+    if (cam_params_.gpio1 != prevCamParams.gpio1)
+    {
+      hasNewParams = true;
+    }
+  }
+  if (local_nh.hasParam("gpio2")) {
+    local_nh.getParam("gpio2", cam_params_.gpio2);
+    if (cam_params_.gpio2 != prevCamParams.gpio2)
+    {
+      hasNewParams = true;
+    }
+  }
   if (local_nh.hasParam("flash_delay")) {
     local_nh.getParam("flash_delay", cam_params_.flash_delay);
     // NOTE: no need to set any parameters, since flash delay comes into
@@ -489,6 +505,8 @@ INT UEyeCamNodelet::parseROSParams(ros::NodeHandle& local_nh) {
     if ((is_err = setResolution(cam_params_.image_width, cam_params_.image_height,
         cam_params_.image_left, cam_params_.image_top, false)) != IS_SUCCESS) return is_err;
     if ((is_err = setSensorScaling(cam_params_.sensor_scaling, false)) != IS_SUCCESS) return is_err;
+    if ((is_err = setGpioMode(1, cam_params_.gpio1)) != IS_SUCCESS) return is_err;
+    if ((is_err = setGpioMode(2, cam_params_.gpio2)) != IS_SUCCESS) return is_err;
 
     // Force synchronize settings and re-allocate frame buffer for redundancy
     // NOTE: although this might not be needed, assume that parseROSParams()
@@ -653,6 +671,14 @@ void UEyeCamNodelet::configCallback(ueye_cam::UEyeCamConfig& config, uint32_t le
   }
 
   // NOTE: nothing needs to be done for config.ext_trigger_mode, since frame grabber loop will re-initialize to the right setting
+
+  if (config.gpio1 != cam_params_.gpio1) {
+    if (setGpioMode(1, config.gpio1) != IS_SUCCESS) return;
+  }
+
+  if (config.gpio2 != cam_params_.gpio2) {
+    if (setGpioMode(2, config.gpio2) != IS_SUCCESS) return;
+  }
 
   if (config.flash_delay != cam_params_.flash_delay ||
       config.flash_duration != cam_params_.flash_duration) {

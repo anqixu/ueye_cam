@@ -298,6 +298,17 @@ public:
   INT setFreeRunMode();
 
   /**
+   * Sets the mode for the GPIO pin.
+   * \param GPIO pin to be set {GPIO1: 1, GPIO2: 2}.
+   * \param mode for GPIO pin {0: input, 1: trigger}.
+   *
+   * \return IS_SUCCESS if successful, error flag otherwise (see err2str).
+   *
+   * @todo include also other modes.
+   */
+  INT setGpioMode(const int& gpio, int& mode);
+
+  /**
    * Sets current camera to external trigger mode, where a HI to LO falling-edge
    * signal on the digital input pin of the camera will trigger the camera to
    * capture a frame. This function also resets the digital output pin to

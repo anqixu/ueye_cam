@@ -62,6 +62,7 @@
     <param name="camera_parameters_file" type="string" value="" /> <!-- default: ~/.ros/camera_conf/<camera_name>.ini -->
 
     <param name="ext_trigger_mode" type="bool" value="True" /> <!-- if False, then camera will operate in free-run mode; otherwise, frames need to be triggered by hardware signal (falling-edge) on digital input pin of camera -->
+    <param name="gpio1" type="int" value="1" /> <!-- Set mode for GPIO1: 0 = Input; 1 = Trigger -->
 
     <!-- the following are optional camera configuration parameters:
          they will be loaded on the camera after the .ini configuration
@@ -114,6 +115,7 @@
     <param name="camera_parameters_file" type="string" value="" /> <!-- default: ~/.ros/camera_conf/<camera_name>.ini -->
 
     <param name="ext_trigger_mode" type="bool" value="True" /> <!-- if False, then camera will operate in free-run mode; otherwise, frames need to be triggered by hardware signal (falling-edge) on digital input pin of camera -->
+    <param name="gpio1" type="int" value="1" /> <!-- Set mode for GPIO1: 0 = Input; 1 = Trigger -->
 
     <!-- the following are optional camera configuration parameters:
          they will be loaded on the camera after the .ini configuration

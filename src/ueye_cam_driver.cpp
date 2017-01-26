@@ -825,6 +825,36 @@ INT UEyeCamDriver::setFreeRunMode() {
   return is_err;
 }
 
+INT UEyeCamDriver::setGpioMode(const int& gpio, int& mode) {
+  /* Set GPIO to a specific mode. */
+  INT is_err = IS_SUCCESS;
+
+  IO_GPIO_CONFIGURATION gpioConfiguration;
+   
+  if (gpio == 1)
+    // GPIO1 (pin 5).
+    gpioConfiguration.u32Gpio = IO_GPIO_1;
+  else if (gpio == 2)
+    // GPIO2 (pin 6).
+    gpioConfiguration.u32Gpio = IO_GPIO_2;
+
+  if (mode == 0)
+    gpioConfiguration.u32Configuration = IS_GPIO_INPUT;
+  else if (mode == 1)
+    gpioConfiguration.u32Configuration = IS_GPIO_TRIGGER;
+  gpioConfiguration.u32State = 0;
+
+  is_err = is_IO(cam_handle_, IS_IO_CMD_GPIOS_SET_CONFIGURATION, (void*)&gpioConfiguration, 
+              sizeof(gpioConfiguration));
+  if (is_err == IS_SUCCESS)
+    DEBUG_STREAM("GPIO " << gpio << " set as " << mode << " for [" << cam_name_ << "]");
+  else
+    ERROR_STREAM("Could not set pin " << gpio << " of [" << cam_name_ <<
+        "] to " << mode);
+    
+  return is_err;
+
+}
 
 INT UEyeCamDriver::setExtTriggerMode() {
   if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
