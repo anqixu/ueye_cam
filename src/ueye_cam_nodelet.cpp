@@ -661,7 +661,7 @@ void UEyeCamNodelet::configCallback(ueye_cam::UEyeCamConfig& config, uint32_t le
     //       may not equal to sizeof(INT) / sizeof(UINT)
     INT flash_delay = config.flash_delay;
     UINT flash_duration = config.flash_duration;
-    if (setFlashParams(flash_delay, flash_duration) != IS_SUCCESS) return;
+    setFlashParams(flash_delay, flash_duration);
     // Copy back actual flash parameter values that were set
     config.flash_delay = flash_delay;
     config.flash_duration = flash_duration;
@@ -925,20 +925,22 @@ void UEyeCamNodelet::frameGrabLoop() {
         }
         INFO_STREAM("[" << cam_name_ << "] set to external trigger mode");
       } else {
+        if (setFreeRunMode() != IS_SUCCESS) {
+          ERROR_STREAM("Shutting down driver nodelet for [" << cam_name_ << "]");
+          ros::shutdown();
+          return;
+        }
+
         // NOTE: need to copy flash parameters to local copies since
         //       cam_params_.flash_duration is type int, and also sizeof(int)
         //       may not equal to sizeof(INT) / sizeof(UINT)
         INT flash_delay = cam_params_.flash_delay;
         UINT flash_duration = cam_params_.flash_duration;
-        if ((setFreeRunMode() != IS_SUCCESS) ||
-            (setFlashParams(flash_delay, flash_duration) != IS_SUCCESS)) {
-          ERROR_STREAM("Shutting down driver nodelet for [" << cam_name_ << "]");
-          ros::shutdown();
-          return;
-        }
+        setFlashParams(flash_delay, flash_duration);
         // Copy back actual flash parameter values that were set
         cam_params_.flash_delay = flash_delay;
         cam_params_.flash_duration = flash_duration;
+
         INFO_STREAM("[" << cam_name_ << "] set to free-run mode");
       }
     } else if (currNumSubscribers <= 0 && prevNumSubscribers > 0) {
