@@ -757,13 +757,13 @@ INT UEyeCamDriver::setFlashParams(INT& delay_us, UINT& duration_us) {
   IO_FLASH_PARAMS minFlashParams, maxFlashParams, newFlashParams;
   if ((is_err = is_IO(cam_handle_, IS_IO_CMD_FLASH_GET_PARAMS_MIN,
       (void*) &minFlashParams, sizeof(IO_FLASH_PARAMS))) != IS_SUCCESS) {
-    ERROR_STREAM("Could not retrieve flash parameter info (min) for [" << cam_name_ <<
+    ERROR_STREAM("Failed to retrieve flash parameter info (min) for [" << cam_name_ <<
       "] (" << err2str(is_err) << ")");
     return is_err;
   }
   if ((is_err = is_IO(cam_handle_, IS_IO_CMD_FLASH_GET_PARAMS_MAX,
       (void*) &maxFlashParams, sizeof(IO_FLASH_PARAMS))) != IS_SUCCESS) {
-    ERROR_STREAM("Could not retrieve flash parameter info (max) for [" << cam_name_ <<
+    ERROR_STREAM("Failed to retrieve flash parameter info (max) for [" << cam_name_ <<
       "] (" << err2str(is_err) << ")");
     return is_err;
   }
@@ -780,7 +780,7 @@ INT UEyeCamDriver::setFlashParams(INT& delay_us, UINT& duration_us) {
   //          and vice versa. This is why the duration is set manually.
   if ((is_err = is_IO(cam_handle_, IS_IO_CMD_FLASH_SET_PARAMS,
       (void*) &newFlashParams, sizeof(IO_FLASH_PARAMS))) != IS_SUCCESS) {
-    ERROR_STREAM("Could not set flash parameter info for [" << cam_name_ <<
+    WARN_STREAM("Failed to set flash parameter info for [" << cam_name_ <<
       "] (" << err2str(is_err) << ")");
     return is_err;
   }
