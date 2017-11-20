@@ -1,3 +1,4 @@
+<?xml version="1.0"?>
 <launch>
   <node pkg="nodelet" type="nodelet" name="nodelet_manager" args="manager" output="screen" launch-prefix="gdb -ex run --args" />
   

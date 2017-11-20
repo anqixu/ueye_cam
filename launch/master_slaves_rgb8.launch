@@ -1,3 +1,4 @@
+<?xml version="1.0"?>
 <launch>
   <node pkg="nodelet" type="nodelet" name="nodelet_manager" args="manager" output="screen" />
 
@@ -6,8 +7,8 @@
     <param name="camera_name" type="str" value="master" /> <!-- == namespace for topics and services -->
     <param name="camera_topic" type="str" value="image_raw" />
     <param name="camera_id" type="int" value="4" /> <!-- 0 = any camera; 1+: camera ID -->
-    <param name="camera_intrinsics_file" type="string" value="$(env HOME)/.ros/camera_info/$(arg camera_name).yaml" />
-    <param name="camera_parameters_file" type="string" value="$(env HOME)/.ros/camera_parameters_file/$(arg camera_name).ini" />
+    <param name="camera_intrinsics_file" type="string" value="$(env HOME)/.ros/camera_info/$(arg camera_name).yaml" /> <!-- default: ~/.ros/camera_info/<camera_name>.yaml -->
+    <param name="camera_parameters_file" type="string" value="$(env HOME)/.ros/camera_parameters_file/$(arg camera_name).ini" /> <!-- default: ~/.ros/camera_conf/<camera_name>.ini -->
 
     <param name="ext_trigger_mode" type="bool" value="False" /> <!-- if False, then camera will operate in free-run mode; otherwise, frames need to be triggered by hardware signal (falling-edge) on digital input pin of camera -->
 
