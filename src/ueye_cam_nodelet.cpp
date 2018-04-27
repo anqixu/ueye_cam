@@ -705,7 +705,7 @@ INT UEyeCamNodelet::syncCamConfig(string dft_mode_str) {
   //cfg_sync_requested_ = true; // WARNING: assume that dyncfg client may want to override current settings
 
   // (Re-)populate ROS image message
-  ros_image_.header.frame_id = "/" + frame_name_;
+  ros_image_.header.frame_id = frame_name_;
   // NOTE: .height, .width, .encoding, .step and .data determined in fillImgMsg();
   //       .is_bigendian determined in constructor
 
@@ -877,7 +877,7 @@ INT UEyeCamNodelet::disconnectCam() {
 bool UEyeCamNodelet::setCamInfo(sensor_msgs::SetCameraInfo::Request& req,
     sensor_msgs::SetCameraInfo::Response& rsp) {
   ros_cam_info_ = req.camera_info;
-  ros_cam_info_.header.frame_id = "/" + frame_name_;
+  ros_cam_info_.header.frame_id = frame_name_;
   rsp.success = saveIntrinsicsFile();
   rsp.status_message = (rsp.success) ?
     "successfully wrote camera info to file" :
@@ -1150,7 +1150,7 @@ void UEyeCamNodelet::loadIntrinsicsFile() {
   if (camera_calibration_parsers::readCalibration(cam_intr_filename_, cam_name_, ros_cam_info_)) {
     DEBUG_STREAM("Loaded intrinsics parameters for [" << cam_name_ << "]");
   }
-  ros_cam_info_.header.frame_id = "/" + frame_name_;
+  ros_cam_info_.header.frame_id = frame_name_;
 }
 
 
