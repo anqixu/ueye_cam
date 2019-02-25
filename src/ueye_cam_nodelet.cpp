@@ -1035,8 +1035,8 @@ void UEyeCamNodelet::frameGrabLoop() {
         output_rate_mutex_.unlock();
         if (throttle_curr_frame) continue;
 
-        cam_info_msg_ptr->width = cam_params_.image_width / cam_sensor_scaling_rate_ / cam_binning_rate_;
-        cam_info_msg_ptr->height = cam_params_.image_height / cam_sensor_scaling_rate_ / cam_binning_rate_;
+        cam_info_msg_ptr->width = cam_params_.image_width / cam_sensor_scaling_rate_ / cam_binning_rate_ / cam_subsampling_rate_;
+        cam_info_msg_ptr->height = cam_params_.image_height / cam_sensor_scaling_rate_ / cam_binning_rate_ / cam_subsampling_rate_;
 
         // Copy pixel content from internal frame buffer to ROS image
         if (!fillMsgData(*img_msg_ptr)) continue;
