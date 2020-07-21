@@ -1,6 +1,7 @@
+<?xml version="1.0"?>
 <launch>
   <node pkg="nodelet" type="nodelet" name="nodelet_manager" args="manager" output="screen" launch-prefix="gdb -ex run --args" />
-  
+
   <node pkg="nodelet" type="nodelet" name="ueye_cam_nodelet"
         args="load ueye_cam/ueye_cam_nodelet nodelet_manager">
     <param name="camera_name" type="str" value="camera" /> <!-- == namespace for topics and services -->
@@ -10,7 +11,7 @@
     <param name="camera_parameters_file" type="string" value="" /> <!-- default: ~/.ros/camera_conf/<camera_name>.ini -->
 
     <param name="ext_trigger_mode" type="bool" value="False" /> <!-- if False, then camera will operate in free-run mode; otherwise, frames need to be triggered by hardware signal (falling-edge) on digital input pin of camera -->
-    
+
     <!-- the following are optional camera configuration parameters:
          they will be loaded on the camera after the .ini configuration
          file, and before dynamic_reconfigure. That means that any
@@ -44,10 +45,10 @@
     <param name="auto_white_balance" type="bool" value="True" />
     <param name="white_balance_red_offset" type="int" value="0" />
     <param name="white_balance_blue_offset" type="int" value="0" />
-    
+
     <param name="flash_delay" type="int" value="0" /> <!-- in us -->
     <param name="flash_duration" type="int" value="1000" /> <!-- in us -->
-    
+
     <param name="auto_frame_rate" type="bool" value="False" />
     <param name="frame_rate" type="double" value="30.0" />
     <param name="output_rate" type="double" value="0.0" /> <!-- >0: throttle rate for publishing frames -->
