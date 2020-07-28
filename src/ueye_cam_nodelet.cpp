@@ -1036,10 +1036,6 @@ void UEyeCamNodelet::frameGrabLoop() {
         if (init_ros_time_.isZero()) {
           if(getClockTick(&init_clock_tick_)) {
             init_ros_time_ = getImageTimestamp();
-
-            // Deal with instability in getImageTimestamp due to daylight savings time
-            if (abs((ros::Time::now() - init_ros_time_).toSec()) > abs((ros::Time::now() - (init_ros_time_+ros::Duration(3600,0))).toSec())) { init_ros_time_ += ros::Duration(3600,0); }
-            if (abs((ros::Time::now() - init_ros_time_).toSec()) > abs((ros::Time::now() - (init_ros_time_-ros::Duration(3600,0))).toSec())) { init_ros_time_ -= ros::Duration(3600,0); }
           }
         }
         img_msg_ptr->header.stamp = cam_info_msg_ptr->header.stamp = getImageTickTimestamp();
@@ -1215,17 +1211,26 @@ bool UEyeCamNodelet::saveIntrinsicsFile() {
 }
 
 ros::Time UEyeCamNodelet::getImageTimestamp() {
-  UEYETIME utime;
-  if(getTimestamp(&utime)) {
-    struct tm tm;
-    tm.tm_year = utime.wYear - 1900;
-    tm.tm_mon = utime.wMonth - 1;
-    tm.tm_mday = utime.wDay;
-    tm.tm_hour = utime.wHour;
-    tm.tm_min = utime.wMinute;
-    tm.tm_sec = utime.wSecond;
-    return ros::Time(mktime(&tm),utime.wMilliseconds*1e6);
-  }
+  // There have been several issues reported on time drifts, so we shall rely purely on ros::Time::now()
+  // e.g. https://github.com/anqixu/ueye_cam/issues/82
+  //
+  // UEYETIME utime;
+  // if(getTimestamp(&utime)) {
+  //   struct tm tm;
+  //   tm.tm_year = utime.wYear - 1900;
+  //   tm.tm_mon = utime.wMonth - 1;
+  //   tm.tm_mday = utime.wDay;
+  //   tm.tm_hour = utime.wHour;
+  //   tm.tm_min = utime.wMinute;
+  //   tm.tm_sec = utime.wSecond;
+  //   ros::Time t = ros::Time(mktime(&tm),utime.wMilliseconds*1e6);
+  //
+  //   // Deal with instability due to daylight savings time
+  //   if (abs((ros::Time::now() - t).toSec()) > abs((ros::Time::now() - (t+ros::Duration(3600,0))).toSec())) { t += ros::Duration(3600,0); }
+  //   if (abs((ros::Time::now() - t).toSec()) > abs((ros::Time::now() - (t-ros::Duration(3600,0))).toSec())) { t -= ros::Duration(3600,0); }
+  //
+  //   return t;
+  // }
   return ros::Time::now();
 }
 
