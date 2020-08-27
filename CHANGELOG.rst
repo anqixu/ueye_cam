@@ -2,8 +2,8 @@
 Changelog for package ueye_cam
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.0.17 (2020-08-26)
+-------------------
 * Merge pull request `#83 <https://github.com/anqixu/ueye_cam/issues/83>` from anqixu/use_ros_time
   Do not get timestamp from camera, and use ros::Time::now() instead
 * Merge pull request `#61 <https://github.com/anqixu/ueye_cam/issues/61>` from jackokaiser/master
