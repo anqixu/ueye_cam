@@ -1,4 +1,4 @@
-<package>
+<package format="3">
   <name>ueye_cam</name>
   <version>1.0.17</version>
   <description>
@@ -12,21 +12,13 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
-  <build_depend>roscpp</build_depend>
-  <build_depend>nodelet</build_depend>
-  <build_depend>dynamic_reconfigure</build_depend>
-  <build_depend>image_transport</build_depend>
-  <build_depend>sensor_msgs</build_depend>
-  <build_depend>camera_calibration_parsers</build_depend>
-  <build_depend>camera_info_manager</build_depend>
-
-  <run_depend>roscpp</run_depend>
-  <run_depend>nodelet</run_depend>
-  <run_depend>dynamic_reconfigure</run_depend>
-  <run_depend>image_transport</run_depend>
-  <run_depend>sensor_msgs</run_depend>
-  <run_depend>camera_calibration_parsers</run_depend>
-  <run_depend>camera_info_manager</run_depend>
+  <depend>roscpp</depend>
+  <depend>nodelet</depend>
+  <depend>dynamic_reconfigure</depend>
+  <depend>image_transport</depend>
+  <depend>sensor_msgs</depend>
+  <depend>camera_calibration_parsers</depend>
+  <depend>camera_info_manager</depend>
 
   <export>
     <nodelet plugin="${prefix}/nodelet_plugins.xml" />
