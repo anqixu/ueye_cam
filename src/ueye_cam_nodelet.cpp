@@ -77,7 +77,7 @@ UEyeCamNodelet::UEyeCamNodelet():
     nodelet::Nodelet(),
     UEyeCamDriver(ANY_CAMERA, DEFAULT_CAMERA_NAME),
     frame_grab_alive_(false),
-    ros_cfg_(NULL),
+    ros_cfg_(nullptr),
     cfg_sync_requested_(false),
     ros_frame_count_(0),
     timeout_count_(0),
@@ -94,8 +94,8 @@ UEyeCamNodelet::UEyeCamNodelet():
   cam_params_.image_left = -1;
   cam_params_.image_top = -1;
   cam_params_.color_mode = DEFAULT_COLOR_MODE;
-  cam_params_.subsampling = cam_subsampling_rate_;
-  cam_params_.binning = cam_binning_rate_;
+  cam_params_.subsampling = static_cast<int>(cam_subsampling_rate_);
+  cam_params_.binning = static_cast<int>(cam_binning_rate_);
   cam_params_.sensor_scaling = cam_sensor_scaling_rate_;
   cam_params_.auto_gain = false;
   cam_params_.master_gain = 0;
@@ -711,11 +711,11 @@ void UEyeCamNodelet::configCallback(ueye_cam::UEyeCamConfig& config, uint32_t le
     //       cam_params_.flash_duration is type int, and also sizeof(int)
     //       may not equal to sizeof(INT) / sizeof(UINT)
     INT flash_delay = config.flash_delay;
-    UINT flash_duration = config.flash_duration;
+    UINT flash_duration = static_cast<UINT>(config.flash_duration);
     setFlashParams(flash_delay, flash_duration);
     // Copy back actual flash parameter values that were set
     config.flash_delay = flash_delay;
-    config.flash_duration = flash_duration;
+    config.flash_duration = static_cast<int>(flash_duration);
   }
 
   // Update local copy of parameter set to newly updated set
@@ -750,8 +750,8 @@ INT UEyeCamNodelet::syncCamConfig(string dft_mode_str) {
   cam_params_.image_height = cam_aoi_.s32Height; // sensor's Area of Interest, and not of the image
   if (cam_params_.image_left >= 0) cam_params_.image_left = cam_aoi_.s32X; // TODO: 1 ideally want to ensure that aoi top-left does correspond to centering
   if (cam_params_.image_top >= 0) cam_params_.image_top = cam_aoi_.s32Y;
-  cam_params_.subsampling = cam_subsampling_rate_;
-  cam_params_.binning = cam_binning_rate_;
+  cam_params_.subsampling = static_cast<int>(cam_subsampling_rate_);
+  cam_params_.binning = static_cast<int>(cam_binning_rate_);
   cam_params_.sensor_scaling = cam_sensor_scaling_rate_;
   //cfg_sync_requested_ = true; // WARNING: assume that dyncfg client may want to override current settings
 
@@ -841,8 +841,8 @@ INT UEyeCamNodelet::queryCamParams() {
       cam_name_ << "] (" << err2str(is_err) << ")");
     return is_err;
   }
-  cam_params_.white_balance_red_offset = pval1;
-  cam_params_.white_balance_blue_offset = pval2;
+  cam_params_.white_balance_red_offset = static_cast<int>(pval1);
+  cam_params_.white_balance_blue_offset = static_cast<int>(pval2);
 
   IO_FLASH_PARAMS currFlashParams;
   if ((is_err = is_IO(cam_handle_, IS_IO_CMD_FLASH_GET_PARAMS,
@@ -852,7 +852,7 @@ INT UEyeCamNodelet::queryCamParams() {
     return is_err;
   }
   cam_params_.flash_delay = currFlashParams.s32Delay;
-  cam_params_.flash_duration = currFlashParams.u32Duration;
+  cam_params_.flash_duration = static_cast<int>(currFlashParams.u32Duration);
 
   if ((is_err = is_SetAutoParameter(cam_handle_,
       IS_GET_ENABLE_AUTO_SENSOR_FRAMERATE, &pval1, &pval2)) != IS_SUCCESS &&
@@ -877,7 +877,7 @@ INT UEyeCamNodelet::queryCamParams() {
       "] (" << err2str(is_err) << ")");
     return is_err;
   }
-  cam_params_.pixel_clock = currPixelClock;
+  cam_params_.pixel_clock = static_cast<int>(currPixelClock);
 
   INT currROP = is_SetRopEffect(cam_handle_, IS_GET_ROP_EFFECT, 0, 0);
   cam_params_.flip_upd = ((currROP & IS_SET_ROP_MIRROR_UPDOWN) == IS_SET_ROP_MIRROR_UPDOWN);
@@ -960,7 +960,7 @@ void UEyeCamNodelet::frameGrabLoop() {
   while (frame_grab_alive_ && ros::ok()) {
     // Initialize live video mode if camera was previously asleep, and ROS image topic has subscribers;
     // and stop live video mode if ROS image topic no longer has any subscribers
-    currNumSubscribers = ros_cam_pub_.getNumSubscribers();
+    currNumSubscribers = static_cast<int>(ros_cam_pub_.getNumSubscribers());
     if (currNumSubscribers > 0 && prevNumSubscribers <= 0) {
       // Reset reference time to prevent throttling first frame
       output_rate_mutex_.lock();
@@ -986,11 +986,11 @@ void UEyeCamNodelet::frameGrabLoop() {
         //       cam_params_.flash_duration is type int, and also sizeof(int)
         //       may not equal to sizeof(INT) / sizeof(UINT)
         INT flash_delay = cam_params_.flash_delay;
-        UINT flash_duration = cam_params_.flash_duration;
+        UINT flash_duration = static_cast<unsigned int>(cam_params_.flash_duration);
         setFlashParams(flash_delay, flash_duration);
         // Copy back actual flash parameter values that were set
         cam_params_.flash_delay = flash_delay;
-        cam_params_.flash_duration = flash_duration;
+        cam_params_.flash_duration = static_cast<int>(flash_duration);
 
         INFO_STREAM("[" << cam_name_ << "] set to free-run mode");
       }
@@ -1026,8 +1026,8 @@ void UEyeCamNodelet::frameGrabLoop() {
 
     if (isCapturing()) {
       INT eventTimeout = (cam_params_.auto_frame_rate || cam_params_.ext_trigger_mode) ?
-          (INT) 2000 : (INT) (1000.0 / cam_params_.frame_rate * 2);
-      if (processNextFrame(eventTimeout) != NULL) {
+          static_cast<INT>(2000) : static_cast<INT>(1000.0 / cam_params_.frame_rate * 2);
+      if (processNextFrame(eventTimeout) != nullptr) {
         // Initialize shared pointers from member messages for nodelet intraprocess publishing
         sensor_msgs::ImagePtr img_msg_ptr(new sensor_msgs::Image(ros_image_));
         sensor_msgs::CameraInfoPtr cam_info_msg_ptr(new sensor_msgs::CameraInfo(ros_cam_info_));
@@ -1071,7 +1071,7 @@ void UEyeCamNodelet::frameGrabLoop() {
             init_publish_time_ = img_msg_ptr->header.stamp;
           } else {
             double time_elapsed = (img_msg_ptr->header.stamp - init_publish_time_).toSec();
-            uint64_t curr_output_frame_idx = std::floor(time_elapsed * cam_params_.output_rate);
+            uint64_t curr_output_frame_idx = static_cast<uint64_t>(std::floor(time_elapsed * cam_params_.output_rate));
             if (curr_output_frame_idx <= prev_output_frame_idx_) {
               throttle_curr_frame = true;
             } else {
@@ -1082,8 +1082,8 @@ void UEyeCamNodelet::frameGrabLoop() {
         output_rate_mutex_.unlock();
         if (throttle_curr_frame) continue;
 
-        cam_info_msg_ptr->width = cam_params_.image_width / cam_sensor_scaling_rate_ / cam_binning_rate_ / cam_subsampling_rate_;
-        cam_info_msg_ptr->height = cam_params_.image_height / cam_sensor_scaling_rate_ / cam_binning_rate_ / cam_subsampling_rate_;
+        cam_info_msg_ptr->width = static_cast<unsigned int>(cam_params_.image_width / cam_sensor_scaling_rate_ / cam_binning_rate_ / cam_subsampling_rate_);
+        cam_info_msg_ptr->height = static_cast<unsigned int>(cam_params_.image_height / cam_sensor_scaling_rate_ / cam_binning_rate_ / cam_subsampling_rate_);
 
         // Copy pixel content from internal frame buffer to ROS image
         if (!fillMsgData(*img_msg_ptr)) continue;
@@ -1157,10 +1157,10 @@ bool UEyeCamNodelet::fillMsgData(sensor_msgs::Image& img) const {
   }
 
   // allocate target memory
-  img.width = cam_aoi_.s32Width;
-  img.height = cam_aoi_.s32Height;
+  img.width = static_cast<unsigned int>(cam_aoi_.s32Width);
+  img.height = static_cast<unsigned int>(cam_aoi_.s32Height);
   img.encoding = ENCODING_DICTIONARY.at(color_mode_);
-  img.step = img.width * sensor_msgs::image_encodings::numChannels(img.encoding) * sensor_msgs::image_encodings::bitDepth(img.encoding)/8;
+  img.step = img.width * static_cast<unsigned int>(sensor_msgs::image_encodings::numChannels(img.encoding)) * static_cast<unsigned int>(sensor_msgs::image_encodings::bitDepth(img.encoding))/8;
   img.data.resize(img.height * img.step);
 
   DEBUG_STREAM("Allocated ROS image buffer for [" << cam_name_ << "]:" <<
@@ -1174,13 +1174,13 @@ bool UEyeCamNodelet::fillMsgData(sensor_msgs::Image& img) const {
 
   if (cam_buffer_pitch_ == expected_row_stride) {
     // Content is contiguous, so copy out the entire buffer at once
-    unpackCopy(img.data.data(), cam_buffer_, img.height*expected_row_stride);
+    unpackCopy(img.data.data(), cam_buffer_, img.height*static_cast<unsigned int>(expected_row_stride));
   } else { // cam_buffer_pitch_ > expected_row_stride
     // Each row contains extra buffer according to cam_buffer_pitch_, so must copy out each row independently
     uint8_t* dst_ptr = img.data.data();
     char* cam_buffer_ptr = cam_buffer_;
     for (INT row = 0; row < cam_aoi_.s32Height; row++) {
-      unpackCopy(dst_ptr, cam_buffer_ptr, expected_row_stride);
+      unpackCopy(dst_ptr, cam_buffer_ptr, static_cast<unsigned long>(expected_row_stride));
       cam_buffer_ptr += cam_buffer_pitch_;
       dst_ptr += img.step;
     }

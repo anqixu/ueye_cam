@@ -352,22 +352,22 @@ public:
    */
   const char* processNextFrame(INT timeout_ms);
 
-  inline bool isConnected() { return (cam_handle_ != (HIDS) 0); }
+  inline bool isConnected() { return (cam_handle_ != HIDS(0)); }
 
   inline bool freeRunModeActive() {
-    return ((cam_handle_ != (HIDS) 0) &&
+    return ((cam_handle_ != HIDS(0)) &&
         (is_SetExternalTrigger(cam_handle_, IS_GET_EXTERNALTRIGGER) == IS_SET_TRIGGER_OFF) &&
         (is_CaptureVideo(cam_handle_, IS_GET_LIVE) == TRUE));
   }
 
   inline bool extTriggerModeActive() {
-    return ((cam_handle_ != (HIDS) 0) &&
+    return ((cam_handle_ != HIDS(0)) &&
         (is_SetExternalTrigger(cam_handle_, IS_GET_EXTERNALTRIGGER) == IS_SET_TRIGGER_HI_LO) &&
         (is_CaptureVideo(cam_handle_, IS_GET_LIVE) == TRUE));
   }
 
   inline bool isCapturing() {
-    return ((cam_handle_ != (HIDS) 0) &&
+    return ((cam_handle_ != HIDS(0)) &&
         (is_CaptureVideo(cam_handle_, IS_GET_LIVE) == TRUE));
   }
 
@@ -389,17 +389,17 @@ public:
   /**
    *  bits per pixel attribute of UEye color mode flag
    */
-  const static INT colormode2bpp(INT mode);
+  static INT colormode2bpp(INT mode);
 
   /**
    *  check if this driver supports the chosen UEye color mode
    */
-  const static bool isSupportedColorMode(INT mode);
+  static bool isSupportedColorMode(INT mode);
 
   /**
    * translates ROS name to UEye color mode flag or the other way round.
    */
-  const static INT name2colormode(const std::string& name);
+  static INT name2colormode(const std::string& name);
   const static std::string colormode2name(INT mode);
 
   /**
@@ -444,7 +444,7 @@ protected:
   virtual INT syncCamConfig(std::string dft_mode_str = "mono8");
 
 
-  virtual void handleTimeout() {};
+  virtual void handleTimeout() {}
 
 
   /**
