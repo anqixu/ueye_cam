@@ -1,5 +1,3 @@
-cmake_minimum_required(VERSION 2.8.3)
-
 # Script based on:
 # https://bitbucket.org/kmhallen/ueye/src/4d8e78311e9d1ba4db3327b89862c3fa3ae602d1/CMakeLists.txt?at=default
 
