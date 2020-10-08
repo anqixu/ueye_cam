@@ -214,6 +214,17 @@ public:
       INT& green_gain_prc, INT& blue_gain_prc, bool& gain_boost);
 
   /**
+   * Updates current camera handle's software gamma to specified parameter.
+   *
+   * According to ids this is only possible when the color mode is debayered by the ids driver 
+   *
+   * \param software_gamma gamma value in percentage
+   *
+   * \return IS_SUCCESS if successful, error flag otherwise (see err2str).
+   */
+  INT setSoftwareGamma(INT& software_gamma);
+
+  /**
    * Updates current camera handle's exposure / shutter either to auto mode, or
    * to specified manual parameters.
    *

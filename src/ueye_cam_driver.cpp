@@ -559,6 +559,31 @@ INT UEyeCamDriver::setGain(bool& auto_gain, INT& master_gain_prc, INT& red_gain_
 }
 
 
+INT UEyeCamDriver::setSoftwareGamma(INT& software_gamma) {
+  if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
+
+  INT is_err = IS_SUCCESS;
+
+  // According to ids this is only possible when the color mode is debayered by the ids driver 
+  if ((color_mode_ == IS_CM_SENSOR_RAW8)  ||
+      (color_mode_ == IS_CM_SENSOR_RAW10) ||
+      (color_mode_ == IS_CM_SENSOR_RAW12) ||
+      (color_mode_ == IS_CM_SENSOR_RAW16)) {
+    WARN_STREAM("Software gamma only possible when the color mode is debayered, " <<
+    "could not set software gamma for [" << cam_name_ << "] (" << err2str(is_err) << ")"); 
+    return IS_NO_SUCCESS;    
+  }
+
+  // set software gamma 
+  if ((is_err = is_Gamma(cam_handle_, IS_GAMMA_CMD_SET, (void*) &software_gamma, sizeof(software_gamma))) != IS_SUCCESS) {
+    WARN_STREAM("Software gamma could not be set for [" << cam_name_ <<
+    "] (" << err2str(is_err) << ")");       
+  }  
+
+  return is_err;
+}
+
+
 INT UEyeCamDriver::setExposure(bool& auto_exposure, double& exposure_ms) {
   if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
 
