@@ -28,6 +28,10 @@ in a timely manner.
                           File -> save parameter -> to file...)
 
 
+**REQUIREMENTS:**  
+[IDS uEye Software Suite](https://en.ids-imaging.com/downloads.html) >= 4.94 
+
+
 **DOCUMENTATION:**
 
 www.ros.org/wiki/ueye_cam
