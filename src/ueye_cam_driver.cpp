@@ -808,8 +808,14 @@ INT UEyeCamDriver::setFreeRunMode() {
         "] (" << err2str(is_err) << ")");
       WARN_STREAM("WARNING: camera hardware does not support ueye_cam's master-slave synchronization method");
     }
-
-    if ((is_err = is_EnableEvent(cam_handle_, IS_SET_EVENT_FRAME)) != IS_SUCCESS) {
+    IS_INIT_EVENT init_events[] = {{IS_SET_EVENT_FRAME, FALSE, FALSE}};
+    if ((is_err = is_Event(cam_handle_, IS_EVENT_CMD_INIT, init_events, sizeof(init_events))) != IS_SUCCESS) {
+      ERROR_STREAM("Could not init frame event for [" << cam_name_ <<
+        "] (" << err2str(is_err) << ")");
+      return is_err;
+    }
+    UINT events[] = {IS_SET_EVENT_FRAME};
+    if ((is_err = is_Event(cam_handle_,IS_EVENT_CMD_ENABLE, events, sizeof(events))) != IS_SUCCESS) {
       ERROR_STREAM("Could not enable frame event for [" << cam_name_ <<
         "] (" << err2str(is_err) << ")");
       return is_err;
@@ -834,7 +840,14 @@ INT UEyeCamDriver::setExtTriggerMode() {
   if (!extTriggerModeActive()) {
     setStandbyMode(); // No need to check for success
 
-    if ((is_err = is_EnableEvent(cam_handle_, IS_SET_EVENT_FRAME)) != IS_SUCCESS) {
+    IS_INIT_EVENT init_events[] = {{IS_SET_EVENT_FRAME, FALSE, FALSE}};
+    if ((is_err = is_Event(cam_handle_, IS_EVENT_CMD_INIT, init_events, sizeof(init_events))) != IS_SUCCESS) {
+      ERROR_STREAM("Could not init frame event for [" << cam_name_ <<
+        "] (" << err2str(is_err) << ")");
+      return is_err;
+    }
+    UINT events[] = {IS_SET_EVENT_FRAME};
+    if ((is_err = is_Event(cam_handle_,IS_EVENT_CMD_ENABLE, events, sizeof(events))) != IS_SUCCESS) {
       ERROR_STREAM("Could not enable frame event for [" << cam_name_ <<
         "] (" << err2str(is_err) << ")");
       return is_err;
@@ -889,8 +902,10 @@ INT UEyeCamDriver::setStandbyMode() {
 
   INT is_err = IS_SUCCESS;
 
+  UINT events[] = {IS_SET_EVENT_FRAME};
+    
   if (extTriggerModeActive()) {
-      if ((is_err = is_DisableEvent(cam_handle_, IS_SET_EVENT_FRAME)) != IS_SUCCESS) {
+      if ((is_err = is_Event(cam_handle_,IS_EVENT_CMD_DISABLE, events, sizeof(events))) != IS_SUCCESS) {
         ERROR_STREAM("Could not disable frame event for [" << cam_name_ <<
           "] (" << err2str(is_err) << ")");
         return is_err;
@@ -915,7 +930,7 @@ INT UEyeCamDriver::setStandbyMode() {
         "] (" << err2str(is_err) << ")");
       return is_err;
     }
-    if ((is_err = is_DisableEvent(cam_handle_, IS_SET_EVENT_FRAME)) != IS_SUCCESS) {
+    if ((is_err = is_Event(cam_handle_,IS_EVENT_CMD_DISABLE, events, sizeof(events))) != IS_SUCCESS) {
       ERROR_STREAM("Could not disable frame event for [" << cam_name_ <<
         "] (" << err2str(is_err) << ")");
       return is_err;
@@ -943,8 +958,9 @@ const char* UEyeCamDriver::processNextFrame(INT timeout_ms) {
   INT is_err = IS_SUCCESS;
 
   // Wait for frame event
-  if ((is_err = is_WaitEvent(cam_handle_, IS_SET_EVENT_FRAME,
-        timeout_ms)) != IS_SUCCESS) {
+  UINT events[] = {IS_SET_EVENT_FRAME};
+  IS_WAIT_EVENTS wait_events = {events, 1, FALSE, timeout_ms, 0, 0};
+  if ((is_err = is_Event(cam_handle_, IS_EVENT_CMD_WAIT, &wait_events, sizeof(wait_events))) != IS_SUCCESS) {
     if (is_err == IS_TIMED_OUT) {
       ERROR_STREAM("Timed out while acquiring image from [" << cam_name_ <<
         "] (" << err2str(is_err) << ")");
