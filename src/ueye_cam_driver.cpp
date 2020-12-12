@@ -952,7 +952,7 @@ INT UEyeCamDriver::setStandbyMode() {
 }
 
 
-const char* UEyeCamDriver::processNextFrame(INT timeout_ms) {
+const char* UEyeCamDriver::processNextFrame(UINT timeout_ms) {
   if (!freeRunModeActive() && !extTriggerModeActive()) return nullptr;
 
   INT is_err = IS_SUCCESS;
