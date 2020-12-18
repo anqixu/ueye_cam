@@ -570,7 +570,7 @@ INT UEyeCamDriver::setSoftwareGamma(INT& software_gamma) {
       (color_mode_ == IS_CM_SENSOR_RAW12) ||
       (color_mode_ == IS_CM_SENSOR_RAW16)) {
     WARN_STREAM("Software gamma only possible when the color mode is debayered, " <<
-    "could not set software gamma for [" << cam_name_ << "] (" << err2str(is_err) << ")"); 
+    "could not set software gamma for [" << cam_name_ << "]"); 
     return IS_NO_SUCCESS;    
   }
 
