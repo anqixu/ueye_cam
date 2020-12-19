@@ -103,6 +103,7 @@ UEyeCamNodelet::UEyeCamNodelet():
   cam_params_.green_gain = 0;
   cam_params_.blue_gain = 0;
   cam_params_.gain_boost = 0;
+  cam_params_.software_gamma=100;
   cam_params_.auto_exposure = false;
   cam_params_.exposure = DEFAULT_EXPOSURE;
   cam_params_.auto_white_balance = false;
@@ -189,6 +190,7 @@ void UEyeCamNodelet::onInit() {
       "Green Gain:\t\t" << cam_params_.green_gain << endl <<
       "Blue Gain:\t\t" << cam_params_.blue_gain << endl <<
       "Gain Boost:\t\t" << cam_params_.gain_boost << endl <<
+      "Software Gamma:\t\t" << cam_params_.software_gamma << endl <<
       "Auto Exposure:\t\t" << cam_params_.auto_exposure << endl <<
       "Exposure (ms):\t\t" << cam_params_.exposure << endl <<
       "Auto White Balance:\t" << cam_params_.auto_white_balance << endl <<
@@ -372,6 +374,12 @@ INT UEyeCamNodelet::parseROSParams(ros::NodeHandle& local_nh) {
   } else {
     local_nh.setParam("gain_boost", cam_params_.gain_boost);
   }
+  if (local_nh.hasParam("software_gamma")) {
+    local_nh.getParam("software_gamma", cam_params_.software_gamma);
+    if (cam_params_.software_gamma != prevCamParams.software_gamma) {
+      hasNewParams = true;
+    }
+  }  
   if (local_nh.hasParam("auto_exposure")) {
     local_nh.getParam("auto_exposure", cam_params_.auto_exposure);
     if (cam_params_.auto_exposure != prevCamParams.auto_exposure) {
@@ -562,6 +570,7 @@ INT UEyeCamNodelet::parseROSParams(ros::NodeHandle& local_nh) {
     if ((is_err = setGain(cam_params_.auto_gain, cam_params_.master_gain,
         cam_params_.red_gain, cam_params_.green_gain,
         cam_params_.blue_gain, cam_params_.gain_boost)) != IS_SUCCESS) noop;
+    if ((is_err = setSoftwareGamma(cam_params_.software_gamma)) != IS_SUCCESS) noop;
     if ((is_err = setPixelClockRate(cam_params_.pixel_clock)) != IS_SUCCESS) return is_err;
     if ((is_err = setFrameRate(cam_params_.auto_frame_rate, cam_params_.frame_rate)) != IS_SUCCESS) return is_err;
     if ((is_err = setExposure(cam_params_.auto_exposure, cam_params_.exposure)) != IS_SUCCESS) noop;
@@ -662,6 +671,10 @@ void UEyeCamNodelet::configCallback(ueye_cam::UEyeCamConfig& config, uint32_t le
         config.red_gain, config.green_gain,
         config.blue_gain, config.gain_boost) != IS_SUCCESS) return;
   }
+  if (config.software_gamma != cam_params_.software_gamma) {
+    if (setSoftwareGamma(config.software_gamma) != IS_SUCCESS) return;    
+  }
+
 
   if (config.pixel_clock != cam_params_.pixel_clock) {
     if (setPixelClockRate(config.pixel_clock) != IS_SUCCESS) return;
@@ -806,6 +819,13 @@ INT UEyeCamNodelet::queryCamParams() {
     }
   } else {
     cam_params_.gain_boost = false;
+  }
+
+  if ((is_err = is_Gamma(cam_handle_, IS_GAMMA_CMD_GET, (void*) &cam_params_.software_gamma, 
+      sizeof(cam_params_.software_gamma))) != IS_SUCCESS) {
+    ERROR_STREAM("Failed to query software gamma value for [" << cam_name_ <<
+      "] (" << err2str(is_err) << ")"); 
+      return is_err;   
   }
 
   if ((is_err = is_SetAutoParameter(cam_handle_,

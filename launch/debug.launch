@@ -38,6 +38,7 @@
     <param name="green_gain" type="int" value="1" />
     <param name="blue_gain" type="int" value="16" />
     <param name="gain_boost" type="bool" value="False" />
+    <param name="software_gamma" type="double" value="100.0" />
 
     <param name="auto_exposure" type="bool" value="False" />
     <param name="exposure" type="int" value="33" /> <!-- in ms -->
