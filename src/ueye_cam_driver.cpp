@@ -584,7 +584,7 @@ INT UEyeCamDriver::setSoftwareGamma(INT& software_gamma) {
 }
 
 
-INT UEyeCamDriver::setExposure(bool& auto_exposure, double& exposure_ms) {
+INT UEyeCamDriver::setExposure(bool& auto_exposure, double& auto_exposure_reference, double& exposure_ms) {
   if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
 
   INT is_err = IS_SUCCESS;
@@ -602,6 +602,13 @@ INT UEyeCamDriver::setExposure(bool& auto_exposure, double& exposure_ms) {
       auto_exposure = false;
     }
   }
+
+  // Set exposure reference for auto exposure controller 
+  if ((is_err = is_SetAutoParameter (cam_handle_, IS_SET_AUTO_REFERENCE, 
+    &auto_exposure_reference, 0)) != IS_SUCCESS) {
+    WARN_STREAM("Auto exposure reference value could not be set for [" << cam_name_ <<
+    "] (" << err2str(is_err) << ")");      
+    }
 
   // Set manual exposure timing
   if (!auto_exposure) {
