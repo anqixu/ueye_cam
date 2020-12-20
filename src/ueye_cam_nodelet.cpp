@@ -710,7 +710,7 @@ void UEyeCamNodelet::configCallback(ueye_cam::UEyeCamConfig& config, uint32_t le
   if (config.auto_exposure != cam_params_.auto_exposure ||
       config.auto_exposure_reference != cam_params_.auto_exposure_reference ||
       config.exposure != cam_params_.exposure) {
-    if (setExposure(config.auto_exposure, cam_params_.auto_exposure_reference, config.exposure) != IS_SUCCESS) return;
+    if (setExposure(config.auto_exposure, config.auto_exposure_reference, config.exposure) != IS_SUCCESS) return;
   }
 
   if (config.auto_white_balance != cam_params_.auto_white_balance ||
