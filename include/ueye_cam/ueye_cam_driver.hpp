@@ -361,7 +361,7 @@ public:
    *         WARNING: image buffer contents may change during capture, or may become
    *         invalid after calling other functions!
    */
-  const char* processNextFrame(INT timeout_ms);
+  const char* processNextFrame(UINT timeout_ms);
 
   inline bool isConnected() { return (cam_handle_ != HIDS(0)); }
 

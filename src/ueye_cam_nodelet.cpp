@@ -1045,7 +1045,7 @@ void UEyeCamNodelet::frameGrabLoop() {
 #endif
 
     if (isCapturing()) {
-      INT eventTimeout = (cam_params_.auto_frame_rate || cam_params_.ext_trigger_mode) ?
+      UINT eventTimeout = (cam_params_.auto_frame_rate || cam_params_.ext_trigger_mode) ?
           static_cast<INT>(2000) : static_cast<INT>(1000.0 / cam_params_.frame_rate * 2);
       if (processNextFrame(eventTimeout) != nullptr) {
         // Initialize shared pointers from member messages for nodelet intraprocess publishing
