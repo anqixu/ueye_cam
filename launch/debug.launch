@@ -41,6 +41,7 @@
     <param name="software_gamma" type="double" value="100.0" />
 
     <param name="auto_exposure" type="bool" value="False" />
+    <param name="auto_exposure_reference" type="double" value="128.0" />
     <param name="exposure" type="int" value="33" /> <!-- in ms -->
 
     <param name="auto_white_balance" type="bool" value="True" />

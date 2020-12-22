@@ -230,12 +230,13 @@ public:
    *
    * \param auto_exposure Updates camera's hardware auto shutter / auto shutter mode.
    *   Will be deactivated if camera does not support mode.
+   * \param auto_exposure_reference sets the reference value for the auto_exposure controller. 
    * \param exposure_ms Manual exposure setting, in ms. Valid value range depends on
    *   current camera pixel clock rate.
    *
    * \return IS_SUCCESS if successful, error flag otherwise (see err2str).
    */
-  INT setExposure(bool& auto_exposure, double& exposure_ms);
+  INT setExposure(bool& auto_exposure, double& auto_exposure_reference, double& exposure_ms);
 
   /**
    * Enables or disables the current camera handle's auto white balance mode, and

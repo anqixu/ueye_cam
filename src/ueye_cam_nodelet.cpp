@@ -105,6 +105,7 @@ UEyeCamNodelet::UEyeCamNodelet():
   cam_params_.gain_boost = 0;
   cam_params_.software_gamma=100;
   cam_params_.auto_exposure = false;
+  cam_params_.auto_exposure_reference = 128;
   cam_params_.exposure = DEFAULT_EXPOSURE;
   cam_params_.auto_white_balance = false;
   cam_params_.white_balance_red_offset = 0;
@@ -192,6 +193,7 @@ void UEyeCamNodelet::onInit() {
       "Gain Boost:\t\t" << cam_params_.gain_boost << endl <<
       "Software Gamma:\t\t" << cam_params_.software_gamma << endl <<
       "Auto Exposure:\t\t" << cam_params_.auto_exposure << endl <<
+      "Auto Exposure Reference:\t" << cam_params_.auto_exposure_reference << endl <<
       "Exposure (ms):\t\t" << cam_params_.exposure << endl <<
       "Auto White Balance:\t" << cam_params_.auto_white_balance << endl <<
       "WB Red Offset:\t\t" << cam_params_.white_balance_red_offset << endl <<
@@ -388,6 +390,14 @@ INT UEyeCamNodelet::parseROSParams(ros::NodeHandle& local_nh) {
   } else {
     local_nh.setParam("auto_exposure", cam_params_.auto_exposure);
   }
+  if (local_nh.hasParam("auto_exposure_reference")) {
+    local_nh.getParam("auto_exposure_reference", cam_params_.auto_exposure_reference);
+    if (cam_params_.auto_exposure_reference != prevCamParams.auto_exposure_reference) {
+      hasNewParams = true;
+    }
+  } else {
+    local_nh.setParam("auto_exposure_reference", cam_params_.auto_exposure_reference);
+  }
   if (local_nh.hasParam("exposure")) {
     local_nh.getParam("exposure", cam_params_.exposure);
     if (cam_params_.exposure != prevCamParams.exposure) {
@@ -573,7 +583,7 @@ INT UEyeCamNodelet::parseROSParams(ros::NodeHandle& local_nh) {
     if ((is_err = setSoftwareGamma(cam_params_.software_gamma)) != IS_SUCCESS) noop;
     if ((is_err = setPixelClockRate(cam_params_.pixel_clock)) != IS_SUCCESS) return is_err;
     if ((is_err = setFrameRate(cam_params_.auto_frame_rate, cam_params_.frame_rate)) != IS_SUCCESS) return is_err;
-    if ((is_err = setExposure(cam_params_.auto_exposure, cam_params_.exposure)) != IS_SUCCESS) noop;
+    if ((is_err = setExposure(cam_params_.auto_exposure, cam_params_.auto_exposure_reference, cam_params_.exposure)) != IS_SUCCESS) noop;
     if ((is_err = setWhiteBalance(cam_params_.auto_white_balance, cam_params_.white_balance_red_offset,
       cam_params_.white_balance_blue_offset)) != IS_SUCCESS) noop;
     if ((is_err = setMirrorUpsideDown(cam_params_.flip_upd)) != IS_SUCCESS) noop;
@@ -698,8 +708,9 @@ void UEyeCamNodelet::configCallback(ueye_cam::UEyeCamConfig& config, uint32_t le
   }
 
   if (config.auto_exposure != cam_params_.auto_exposure ||
+      config.auto_exposure_reference != cam_params_.auto_exposure_reference ||
       config.exposure != cam_params_.exposure) {
-    if (setExposure(config.auto_exposure, config.exposure) != IS_SUCCESS) return;
+    if (setExposure(config.auto_exposure, config.auto_exposure_reference, config.exposure) != IS_SUCCESS) return;
   }
 
   if (config.auto_white_balance != cam_params_.auto_white_balance ||
@@ -837,6 +848,12 @@ INT UEyeCamNodelet::queryCamParams() {
     return is_err;
   }
   cam_params_.auto_exposure = (pval1 != 0);
+
+  if ((is_err = is_SetAutoParameter (cam_handle_, IS_GET_AUTO_REFERENCE, 
+      &cam_params_.auto_exposure_reference, 0)) != IS_SUCCESS) {
+    ERROR_STREAM("Failed to query exposure reference value for [" << cam_name_ <<
+      "] (" << err2str(is_err) << ")");    
+      }
 
   if ((is_err = is_Exposure(cam_handle_, IS_EXPOSURE_CMD_GET_EXPOSURE,
       &cam_params_.exposure, sizeof(cam_params_.exposure))) != IS_SUCCESS) {
