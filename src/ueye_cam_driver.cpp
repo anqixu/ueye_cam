@@ -942,6 +942,11 @@ INT UEyeCamDriver::setStandbyMode() {
           "] (" << err2str(is_err) << ")");
         return is_err;
       }
+      if ((is_err = is_Event(cam_handle_,IS_EVENT_CMD_EXIT, events, sizeof(events))) != IS_SUCCESS) {
+        ERROR_STREAM("Could not exit frame event for [" << cam_name_ <<
+          "] (" << err2str(is_err) << ")");
+        return is_err;
+      }         
       if ((is_err = is_SetExternalTrigger(cam_handle_, IS_SET_TRIGGER_OFF)) != IS_SUCCESS) {
         ERROR_STREAM("Could not disable external trigger mode for [" << cam_name_ <<
           "] (" << err2str(is_err) << ")");
@@ -967,6 +972,11 @@ INT UEyeCamDriver::setStandbyMode() {
         "] (" << err2str(is_err) << ")");
       return is_err;
     }
+    if ((is_err = is_Event(cam_handle_,IS_EVENT_CMD_EXIT, events, sizeof(events))) != IS_SUCCESS) {
+      ERROR_STREAM("Could not exit frame event for [" << cam_name_ <<
+        "] (" << err2str(is_err) << ")");
+      return is_err;
+    }       
     if ((is_err = is_StopLiveVideo(cam_handle_, IS_WAIT)) != IS_SUCCESS) {
       ERROR_STREAM("Could not stop live video mode for [" << cam_name_ <<
         "] (" << err2str(is_err) << ")");
