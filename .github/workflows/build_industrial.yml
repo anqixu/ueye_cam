@@ -1,4 +1,4 @@
-name: Build test (not for release)
+name: Build Test (not for release)
 
 # Controls when the action will run
 on:
