@@ -4,9 +4,9 @@ name: Build Test (not for release)
 on:
   # Triggers the workflow on push or pull request events
   push:
-    branches: [ master, ci_build ]
+    branches: [ master ]
   pull_request:
-    branches: [ master, ci_build ]
+    branches: [ master ]
 
 # Jobs that should be run
 jobs:
