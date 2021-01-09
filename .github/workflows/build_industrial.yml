@@ -1,31 +1,27 @@
-name: Test build for ueye_cam
+name: Build test (not for release)
 
-# Controls when the action will run. 
+# Controls when the action will run
 on:
-  # Triggers the workflow on push or pull request events but only for the master branch
+  # Triggers the workflow on push or pull request events
   push:
     branches: [ master, ci_build ]
   pull_request:
-    branches: [ master ]
+    branches: [ master, ci_build ]
 
-# Set global environment 
-#env:
-#  # Install ueye_api via external script in the docker image created by the ros-industrial/industrial_ci step
-#  BEFORE_INIT: './.github/workflows/Install_ueye_api.sh'
-  
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+# Jobs that should be run
 jobs:
-  # This workflow contains a single job called "build"
   build:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
         env:
+          # Test against current release and testing repo  
           - {ROS_DISTRO: noetic, ROS_REPO: main}
+          - {ROS_DISTRO: noetic, ROS_REPO: testing}
     env:
-      CCACHE_DIR: /github/home/.ccache # Directory for ccache (and how we enable ccache in industrial_ci)
+      CCACHE_DIR: /github/home/.ccache # Directory for ccache (industrial_ci)
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
+    # Steps representing the build job
     steps:   
       - uses: actions/checkout@v2 
           
@@ -35,7 +31,7 @@ jobs:
           path: ${{ env.CCACHE_DIR }}
           key: ccache-${{ matrix.env.ROS_DISTRO }}-${{ matrix.env.ROS_REPO }}
       
-      # Run industrial_ci
+      # Run industrial_ci (building the package)
       - uses: 'ros-industrial/industrial_ci@master'
         env: ${{ matrix.env }}
       
