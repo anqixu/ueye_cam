@@ -1,0 +1,37 @@
+name: Build Test (not for release)
+
+# Controls when the action will run
+on:
+  # Triggers the workflow on push or pull request events
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+# Jobs that should be run
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        env:
+          # Test against current release and testing repo  
+          - {ROS_DISTRO: noetic, ROS_REPO: main}
+          - {ROS_DISTRO: noetic, ROS_REPO: testing}
+    env:
+      CCACHE_DIR: /github/home/.ccache # Directory for ccache (industrial_ci)
+
+    # Steps representing the build job
+    steps:   
+      - uses: actions/checkout@v2 
+          
+      # This step will fetch/store the directory used by ccache before/after the ci run
+      - uses: actions/cache@v2
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-${{ matrix.env.ROS_DISTRO }}-${{ matrix.env.ROS_REPO }}
+      
+      # Run industrial_ci (building the package)
+      - uses: 'ros-industrial/industrial_ci@master'
+        env: ${{ matrix.env }}
+      
