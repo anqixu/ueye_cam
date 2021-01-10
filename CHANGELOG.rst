@@ -2,8 +2,8 @@
 Changelog for package ueye_cam
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.0.18 (2021-01-09)
+-------------------
 * updated driver URLs for 4.94 version
 * [uEye 4.94] Update Deprecated Event Handling Functions  (`#97 <https://github.com/anqixu/ueye_cam/issues/97>`)
   * Updated event functions to 4.94 API + Added init of event before enabling it
