@@ -2,6 +2,19 @@
 Changelog for package ueye_cam
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* updated driver URLs for 4.94 version
+* [uEye 4.94] Update Deprecated Event Handling Functions  (`#97 <https://github.com/anqixu/ueye_cam/issues/97>`)
+  * Updated event functions to 4.94 API + Added init of event before enabling it
+  * Added uEye 4.94 req
+  * Changed timeout to UINT to fit 4_94 API
+* Adding call of exit routine for the frame event
+* Adding auto exposure reference value
+* Added support for setting the software-gamma
+* Package format update and code cleanup
+* Contributors: Anqi Xu, Brett Newman, Nullket, jmackay2, nullket
+
 1.0.17 (2020-08-26)
 -------------------
 * Merge pull request `#83 <https://github.com/anqixu/ueye_cam/issues/83>` from anqixu/use_ros_time
