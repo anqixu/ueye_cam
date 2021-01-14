@@ -2,8 +2,8 @@
 Changelog for package ueye_cam
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.0.19 (2021-01-13)
+-------------------
 * updated MD5 hash for re-packaged unofficiall IDS drivers archives
 * Contributors: Anqi Xu
 
