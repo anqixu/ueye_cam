@@ -821,6 +821,51 @@ INT UEyeCamDriver::setFlashParams(INT& delay_us, UINT& duration_us) {
 }
 
 
+INT UEyeCamDriver::setGpioMode(const int& gpio, int& mode, double& pwm_freq, double& pwm_duty_cycle) {
+  /* Set GPIO to a specific mode. */
+  INT is_err = IS_SUCCESS;
+  IO_GPIO_CONFIGURATION gpioConfiguration;
+  gpioConfiguration.u32State = 0;
+  IO_PWM_PARAMS m_pwmParams;
+  
+  if (gpio == 1) 
+    gpioConfiguration.u32Gpio = IO_GPIO_1; // GPIO1 (pin 5).
+  else if (gpio == 2) 
+    gpioConfiguration.u32Gpio = IO_GPIO_2; // GPIO2 (pin 6).
+
+  switch (mode) {
+  case 0: gpioConfiguration.u32Configuration = IS_GPIO_INPUT; break;  
+  case 1: gpioConfiguration.u32Configuration = IS_GPIO_OUTPUT; break;
+  case 2:
+          gpioConfiguration.u32Configuration = IS_GPIO_OUTPUT;
+          gpioConfiguration.u32State = 1;
+          break;
+  case 3: gpioConfiguration.u32Configuration = IS_GPIO_FLASH; break;
+  case 4:
+          gpioConfiguration.u32Configuration = IS_GPIO_PWM;  
+          m_pwmParams.dblFrequency_Hz = pwm_freq;
+          m_pwmParams.dblDutyCycle = pwm_duty_cycle;
+          break;
+  case 5: gpioConfiguration.u32Configuration = IS_GPIO_TRIGGER;  break;
+  }
+  
+  // set GPIO regarding the selected pind and mode
+  if ((is_err = is_IO(cam_handle_, IS_IO_CMD_GPIOS_SET_CONFIGURATION, (void*)&gpioConfiguration, sizeof(gpioConfiguration))) != IS_SUCCESS) { 
+    ERROR_STREAM("Tried to set GPIO: " << gpioConfiguration.u32Gpio << " and got error code:  " << is_err); 
+  }
+
+  // Set PWM details if prior change of GPIO was successfull and mode is PWM 
+  if ((is_err == IS_SUCCESS) && (mode == 4)) {
+    if ((is_err = is_IO(cam_handle_, IS_IO_CMD_PWM_SET_PARAMS, (void*)&m_pwmParams, sizeof(m_pwmParams))) != IS_SUCCESS) {
+      ERROR_STREAM("Tried to set PWM to: " << m_pwmParams.dblFrequency_Hz << " hz and " << m_pwmParams.dblDutyCycle << 
+      " % and got error code:  " << is_err);   
+    }  
+  }
+
+  return is_err;
+}
+
+
 INT UEyeCamDriver::setFreeRunMode() {
   if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
 

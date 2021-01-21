@@ -289,6 +289,17 @@ public:
   INT setFlashParams(INT& delay_us, UINT& duration_us);
 
   /**
+   * Sets the mode for the GPIO pins.
+   * \param GPIO pin to be set {GPIO1: 1, GPIO2: 2}.
+   * \param mode for GPIO pin {0: input, 1: output low, 2: output high, 3: flash, 4: pwm output, 5: trigger input}.
+   * \param pwm_freq frequency if pwm output is selected as the mode
+   * \param pwm_duty_cycle duty cycle if pwm output is selected as the mode
+   * 
+   * \return IS_SUCCESS if successful, error flag otherwise (see err2str).
+   */
+  INT setGpioMode(const INT& gpio, INT& mode, double& pwm_freq, double& pwm_duty_cycle);
+
+  /**
    * Sets current camera to start capturing frames to internal buffer repeatedly.
    * This function also pre-configures the camera to operate in free-run,
    * non-triggered mode, and further attempts to enable the digital output pin

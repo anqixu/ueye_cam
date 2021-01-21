@@ -117,6 +117,10 @@ UEyeCamNodelet::UEyeCamNodelet():
   cam_params_.ext_trigger_mode = false;
   cam_params_.flash_delay = 0;
   cam_params_.flash_duration = DEFAULT_FLASH_DURATION;
+  cam_params_.gpio1 = 0;
+  cam_params_.gpio2 = 0;
+  cam_params_.pwm_freq = 1;
+  cam_params_.pwm_duty_cycle=0.5;
   cam_params_.flip_upd = false;
   cam_params_.flip_lr = false;
 }
@@ -205,6 +209,8 @@ void UEyeCamNodelet::onInit() {
       "Frame Rate (Hz):\t" << cam_params_.frame_rate << endl <<
       "Output Rate (Hz):\t" << cam_params_.output_rate << endl <<
       "Pixel Clock (MHz):\t" << cam_params_.pixel_clock << endl <<
+      "GPIO1 Mode:\t" << cam_params_.gpio1 << endl <<
+      "GPIO2 Mode:\t" << cam_params_.gpio1 << endl <<
       "Mirror Image Upside Down:\t" << cam_params_.flip_upd << endl <<
       "Mirror Image Left Right:\t" << cam_params_.flip_lr << endl
       );
@@ -480,6 +486,31 @@ INT UEyeCamNodelet::parseROSParams(ros::NodeHandle& local_nh) {
   } else {
     local_nh.setParam("flash_duration", cam_params_.flash_duration);
   }
+  if (local_nh.hasParam("gpio1")) {
+    local_nh.getParam("gpio1", cam_params_.gpio1);
+    if (cam_params_.gpio1 != prevCamParams.gpio1) {hasNewParams = true;}
+  } else {
+    local_nh.setParam("gpio1", cam_params_.gpio1);
+  }
+  if (local_nh.hasParam("gpio2")) {
+    local_nh.getParam("gpio2", cam_params_.gpio2);
+    if (cam_params_.gpio2 != prevCamParams.gpio2) {hasNewParams = true;}
+  } else {
+    local_nh.setParam("gpio2", cam_params_.gpio2);
+  }
+  if (local_nh.hasParam("pwm_freq")) {
+    local_nh.getParam("pwm_freq", cam_params_.pwm_freq);
+    if (cam_params_.pwm_freq != prevCamParams.pwm_freq) {hasNewParams = true;}
+  } else {
+    local_nh.setParam("pwm_freq", cam_params_.pwm_freq);
+  }
+  if (local_nh.hasParam("pwm_duty_cycle")) {
+    local_nh.getParam("pwm_duty_cycle", cam_params_.pwm_duty_cycle);
+    if (cam_params_.pwm_duty_cycle != prevCamParams.pwm_duty_cycle) {hasNewParams = true;}
+  } else {
+    local_nh.setParam("pwm_duty_cycle", cam_params_.pwm_duty_cycle);
+  }
+
   if (local_nh.hasParam("auto_frame_rate")) {
     local_nh.getParam("auto_frame_rate", cam_params_.auto_frame_rate);
     if (cam_params_.auto_frame_rate != prevCamParams.auto_frame_rate) {
@@ -586,6 +617,8 @@ INT UEyeCamNodelet::parseROSParams(ros::NodeHandle& local_nh) {
     if ((is_err = setExposure(cam_params_.auto_exposure, cam_params_.auto_exposure_reference, cam_params_.exposure)) != IS_SUCCESS) noop;
     if ((is_err = setWhiteBalance(cam_params_.auto_white_balance, cam_params_.white_balance_red_offset,
       cam_params_.white_balance_blue_offset)) != IS_SUCCESS) noop;
+    if ((is_err = setGpioMode(1, cam_params_.gpio1, cam_params_.pwm_freq, cam_params_.pwm_duty_cycle)) != IS_SUCCESS) noop;
+    if ((is_err = setGpioMode(2, cam_params_.gpio2, cam_params_.pwm_freq, cam_params_.pwm_duty_cycle)) != IS_SUCCESS) noop;  
     if ((is_err = setMirrorUpsideDown(cam_params_.flip_upd)) != IS_SUCCESS) noop;
     if ((is_err = setMirrorLeftRight(cam_params_.flip_lr)) != IS_SUCCESS) noop;
     #undef noop
@@ -740,6 +773,16 @@ void UEyeCamNodelet::configCallback(ueye_cam::UEyeCamConfig& config, uint32_t le
     // Copy back actual flash parameter values that were set
     config.flash_delay = flash_delay;
     config.flash_duration = static_cast<int>(flash_duration);
+  }
+
+  // Change gpio if mode has changed OR if mode is pwm and pwm settings have been changed 
+  if ((config.gpio1 != cam_params_.gpio1) || 
+      (config.gpio1 == 4 && ((config.pwm_freq != cam_params_.pwm_freq) || (config.pwm_duty_cycle != cam_params_.pwm_duty_cycle)))) {
+    if (setGpioMode(1, config.gpio1, config.pwm_freq, config.pwm_duty_cycle) != IS_SUCCESS) return; 
+  }
+  if ((config.gpio2 != cam_params_.gpio2) || 
+      (config.gpio2 == 4 && ((config.pwm_freq != cam_params_.pwm_freq) || (config.pwm_duty_cycle != cam_params_.pwm_duty_cycle)))) {
+    if (setGpioMode(2, config.gpio2, config.pwm_freq, config.pwm_duty_cycle) != IS_SUCCESS) return; 
   }
 
   // Update local copy of parameter set to newly updated set

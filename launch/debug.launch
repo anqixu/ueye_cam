@@ -51,6 +51,8 @@
     <param name="flash_delay" type="int" value="0" /> <!-- in us -->
     <param name="flash_duration" type="int" value="1000" /> <!-- in us -->
 
+    <param name="gpio1" type="int" value="0" /> <!-- 0 Input, 1 Output Low, 2 Output High, 3 Flash, 4 PWM, 5 Trigger input  -->
+
     <param name="auto_frame_rate" type="bool" value="False" />
     <param name="frame_rate" type="double" value="30.0" />
     <param name="output_rate" type="double" value="0.0" /> <!-- >0: throttle rate for publishing frames -->
