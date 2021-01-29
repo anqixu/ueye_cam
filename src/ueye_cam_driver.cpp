@@ -1174,10 +1174,27 @@ INT UEyeCamDriver::reallocateCamBuffer() {
     return is_err;
   }
 
+  INT width = cam_aoi_.s32Width ;
+  INT height = cam_aoi_.s32Height;
+
+  if((cam_aoi_.s32X > 0) || (cam_aoi_.s32Y > 0))
+  {
+    SENSORINFO m_sInfo;
+    
+	  if((is_err = is_GetSensorInfo(cam_handle_, &m_sInfo)) != IS_SUCCESS) {
+      ERROR_STREAM("Could not retrieve Sensor Info for [" <<
+        cam_name_ << "] (" << err2str(is_err) << ")");
+      return is_err;
+    }
+
+    width = m_sInfo.nMaxWidth;
+    height = m_sInfo.nMaxHeight;
+  }
+  
   // Allocate new memory section for IDS driver to use as frame buffer
-  if ((is_err = is_AllocImageMem(cam_handle_, cam_aoi_.s32Width, cam_aoi_.s32Height,
-      bits_per_pixel_, &cam_buffer_, &cam_buffer_id_)) != IS_SUCCESS) {
-    ERROR_STREAM("Failed to allocate " << cam_aoi_.s32Width << " x " << cam_aoi_.s32Height <<
+  if ((is_err = is_AllocImageMem(cam_handle_, width , height,
+    bits_per_pixel_, &cam_buffer_, &cam_buffer_id_)) != IS_SUCCESS) {
+    ERROR_STREAM("Failed to allocate " << width << " x " << height <<
       " image buffer for [" << cam_name_ << "]");
     return is_err;
   }
