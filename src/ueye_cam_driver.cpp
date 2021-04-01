@@ -1174,21 +1174,46 @@ INT UEyeCamDriver::reallocateCamBuffer() {
     return is_err;
   }
 
-  INT width = cam_aoi_.s32Width ;
-  INT height = cam_aoi_.s32Height;
+  INT width = cam_aoi_.s32Width  ;
+  INT height = cam_aoi_.s32Height ;
 
-  if((cam_aoi_.s32X > 0) || (cam_aoi_.s32Y > 0))
+  UINT start_posX_absolute = 0;
+  UINT start_posY_absolute = 0;
+
+  if ((is_err = is_AOI(cam_handle_, IS_AOI_IMAGE_GET_POS_X_ABS,
+      (void*) &start_posX_absolute, sizeof(start_posX_absolute))) != IS_SUCCESS) {
+    ERROR_STREAM("Could not retrieve Area Of Interest (AOI) information for parameter start X absolute for[" <<
+      cam_name_ << "] (" << err2str(is_err) << ")");
+    return is_err;
+  }
+
+  if ((is_err = is_AOI(cam_handle_, IS_AOI_IMAGE_GET_POS_Y_ABS,
+      (void*) &start_posY_absolute, sizeof(start_posY_absolute))) != IS_SUCCESS) {
+    ERROR_STREAM("Could not retrieve Area Of Interest (AOI) information for parameter start Y absolute for[" <<
+      cam_name_ << "] (" << err2str(is_err) << ")");
+    return is_err;
+  }
+
+  if ((start_posX_absolute == IS_AOI_IMAGE_POS_ABSOLUTE) ||
+      (start_posY_absolute == IS_AOI_IMAGE_POS_ABSOLUTE))
   {
     SENSORINFO m_sInfo;
     
-	  if((is_err = is_GetSensorInfo(cam_handle_, &m_sInfo)) != IS_SUCCESS) {
+    if((is_err = is_GetSensorInfo(cam_handle_, &m_sInfo)) != IS_SUCCESS ) {
       ERROR_STREAM("Could not retrieve Sensor Info for [" <<
         cam_name_ << "] (" << err2str(is_err) << ")");
       return is_err;
     }
 
-    width = m_sInfo.nMaxWidth;
-    height = m_sInfo.nMaxHeight;
+    if ((start_posX_absolute == IS_AOI_IMAGE_POS_ABSOLUTE) && (cam_aoi_.s32X > 0))
+    {
+      width = m_sInfo.nMaxWidth;
+    }
+
+    if ((start_posY_absolute == IS_AOI_IMAGE_POS_ABSOLUTE) && (cam_aoi_.s32Y > 0))
+    {
+      height = m_sInfo.nMaxHeight;
+    }
   }
   
   // Allocate new memory section for IDS driver to use as frame buffer
