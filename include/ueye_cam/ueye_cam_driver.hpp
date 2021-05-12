@@ -53,6 +53,7 @@
 #include <string>
 #include <thread>
 #include <functional>
+#include <map>
 #include "logging_macros.hpp"
 
 

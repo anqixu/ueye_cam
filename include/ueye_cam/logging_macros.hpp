@@ -76,6 +76,7 @@
 
 #elif LOGGING_MACROS_TYPE == NODELET_LOGGING_MACROS
 
+  /*
   #include <ros/ros.h>
   #include <nodelet/nodelet.h>
 
@@ -91,6 +92,7 @@
   #define WARN_STREAM(...) NODELET_WARN_STREAM(__VA_ARGS__)
   #define ERROR_STREAM(...) NODELET_ERROR_STREAM(__VA_ARGS__)
   #define FATAL_STREAM(...) NODELET_FATAL_STREAM(__VA_ARGS__)
+  */
 
 #else
   #include <cstdio>

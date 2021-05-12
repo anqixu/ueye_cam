@@ -48,14 +48,11 @@
 #ifndef UEYE_CAM_NODELET_HPP_
 #define UEYE_CAM_NODELET_HPP_
 
-
-#include <nodelet/nodelet.h>
-#include <dynamic_reconfigure/server.h>
-#include <image_transport/image_transport.h>
-#include <sensor_msgs/Image.h>
-#include <sensor_msgs/CameraInfo.h>
-#include <sensor_msgs/SetCameraInfo.h>
-#include <ueye_cam/UEyeCamConfig.h>
+#include <image_transport/image_transport.hpp>
+#include <sensor_msgs/msg/image.hpp>
+#include <sensor_msgs/msg/camera_info.hpp>
+#include <sensor_msgs/srv/set_camera_info.hpp>
+//#include <ueye_cam/UEyeCamConfig.h>
 #include <boost/thread/mutex.hpp>
 #include <ueye_cam/ueye_cam_driver.hpp>
 
@@ -69,7 +66,7 @@ typedef dynamic_reconfigure::Server<ueye_cam::UEyeCamConfig> ReconfigureServer;
 /**
  * ROS interface nodelet for UEye camera API from IDS Imaging Development Systems GMBH.
  */
-class UEyeCamNodelet : public nodelet::Nodelet, public UEyeCamDriver {
+class UEyeCamNodelet : public rclcpp::Node, public UEyeCamDriver {
 public:
   constexpr static unsigned int RECONFIGURE_RUNNING = 0;
   constexpr static unsigned int RECONFIGURE_STOP = 1;
@@ -138,8 +135,8 @@ protected:
    * (ROS Service) Updates the camera's intrinsic parameters over the ROS topic,
    * and saves the parameters to a flatfile.
    */
-  bool setCamInfo(sensor_msgs::SetCameraInfo::Request& req,
-      sensor_msgs::SetCameraInfo::Response& rsp);
+  bool setCamInfo(sensor_msgs::srv::SetCameraInfo::Request& req,
+      sensor_msgs::srv::SetCameraInfo::Response& rsp);
 
   /**
    * Loads the camera's intrinsic parameters from camIntrFilename.
@@ -165,17 +162,17 @@ protected:
    * therefore writes the fields width, height, encoding, step and
    * data of img.
    */
-  bool fillMsgData(sensor_msgs::Image& img) const;
+  bool fillMsgData(sensor_msgs::msg::Image& img) const;
 
   /**
    * Returns image's timestamp or current wall time if driver call fails.
    */
-  ros::Time getImageTimestamp();
+  rclcpp::Time getImageTimestamp();
 
   /**
    * Returns image's timestamp based on device's internal clock or current wall time if driver call fails.
    */
-  ros::Time getImageTickTimestamp();
+  rclcpp::Time getImageTickTimestamp();
 
   virtual void handleTimeout();
 
@@ -187,13 +184,13 @@ protected:
   bool cfg_sync_requested_;
 
   image_transport::CameraPublisher ros_cam_pub_;
-  sensor_msgs::Image ros_image_;
-  sensor_msgs::CameraInfo ros_cam_info_;
+  sensor_msgs::msg::Image ros_image_;
+  sensor_msgs::msg::CameraInfo ros_cam_info_;
   unsigned int ros_frame_count_;
-  ros::Publisher timeout_pub_;
+  rclcpp::Publisher<std_msgs::msg::UInt64>::SharedPtr timeout_pub_;
   unsigned long long int timeout_count_;
 
-  ros::ServiceServer set_cam_info_srv_;
+  rclcpp::Service<sensor_msgs::srv::SetCameraInfo>::SharedPtr set_cam_info_srv_;
 
   std::string frame_name_;
   std::string cam_topic_;
@@ -202,10 +199,10 @@ protected:
   std::string cam_params_filename_; // should be valid UEye INI file
   ueye_cam::UEyeCamConfig cam_params_;
 
-  ros::Time init_ros_time_; // for processing frames
+  rclcpp::Time init_ros_time_; // for processing frames
   uint64_t init_clock_tick_;
 
-  ros::Time init_publish_time_; // for throttling frames from being published (see cfg.output_rate)
+  rclcpp::Time init_publish_time_; // for throttling frames from being published (see cfg.output_rate)
   uint64_t prev_output_frame_idx_; // see init_publish_time_
   boost::mutex output_rate_mutex_;
 };

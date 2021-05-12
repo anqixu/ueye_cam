@@ -1,33 +1,21 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.10)
 
 project(ueye_cam)
 
-# C++11 Needed
-include(CheckCXXCompilerFlag)
-
-CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
-CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
-
-if(COMPILER_SUPPORTS_CXX11)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-elseif(COMPILER_SUPPORTS_CXX0X)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
-else()
-    message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
+# Default to C++17
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 17)
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -g")
 
-find_package(catkin REQUIRED COMPONENTS
-  roscpp
-  nodelet
-  dynamic_reconfigure
-  image_transport
-  sensor_msgs
-  camera_calibration_parsers
-  camera_info_manager
-  )
-catkin_destinations() # define ${CATKIN_PACKAGE_SHARE_DESTINATION}
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+#find_package(dynamic_reconfigure REQUIRED)
+find_package(image_transport REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(camera_calibration_parsers REQUIRED)
+find_package(camera_info_manager REQUIRED)
 
 #set(UEYE_LIBRARY_PATH /usr/lib)
 find_library(UEYE_LIBRARY ueye_api)
@@ -69,32 +57,32 @@ set(UEYECAM_NODELET_HEADERS
   include/ueye_cam/ueye_cam_nodelet.hpp
 )
 
-generate_dynamic_reconfigure_options(
-  cfg/UEyeCam.cfg
-  )
+#generate_dynamic_reconfigure_options(
+#  cfg/UEyeCam.cfg
+#  )
 
-catkin_package(
-  INCLUDE_DIRS include
-  LIBRARIES ${UEYECAM_LIB_NAME} ${UEYECAM_NODELET_NAME}
-  CATKIN_DEPENDS roscpp nodelet dynamic_reconfigure image_transport sensor_msgs camera_calibration_parsers camera_info_manager
-  )
+#catkin_package(
+#  INCLUDE_DIRS include
+#  LIBRARIES ${UEYECAM_LIB_NAME} ${UEYECAM_NODELET_NAME}
+#  CATKIN_DEPENDS roscpp nodelet dynamic_reconfigure image_transport sensor_msgs camera_calibration_parsers camera_info_manager
+#  )
 
 include_directories(
   include
-  ${catkin_INCLUDE_DIRS}
   ${UEYE_INCLUDE_DIR}
   )
 
 
 add_library(${UEYECAM_LIB_NAME} ${UEYECAM_LIB_SOURCES} ${UEYECAM_LIB_HEADERS})
-target_link_libraries(${UEYECAM_LIB_NAME} ${catkin_LIBRARIES} ${UEYE_LIBRARY})
+target_link_libraries(${UEYECAM_LIB_NAME} ${UEYE_LIBRARY})
 
 add_library(${UEYECAM_NODELET_NAME} ${UEYECAM_NODELET_SOURCES} ${UEYECAM_NODELET_HEADERS})
-target_link_libraries(${UEYECAM_NODELET_NAME} ${catkin_LIBRARIES} ${UEYECAM_LIB_NAME})
-add_dependencies(${UEYECAM_NODELET_NAME} ${PROJECT_NAME}_gencfg)
+target_link_libraries(${UEYECAM_NODELET_NAME} ${UEYECAM_LIB_NAME})
+ament_target_dependencies(${UEYECAM_NODELET_NAME} rclcpp image_transport sensor_msgs camera_calibration_parsers camera_info_manager)
+#add_dependencies(${UEYECAM_NODELET_NAME} ${PROJECT_NAME}_gencfg)
 
 add_executable(check_ueye_api src/check_ueye_api.cpp)
-target_link_libraries(check_ueye_api ${catkin_LIBRARIES})
+target_link_libraries(check_ueye_api ${CMAKE_DL_LIBS})
 
 # Do not package the barebones IDS drivers, since they will mask over the official drivers (when present)
 #if(USE_UNOFFICIAL_UEYE_DRIVERS)
@@ -105,21 +93,21 @@ target_link_libraries(check_ueye_api ${catkin_LIBRARIES})
 
 # Mark cpp header files for installation
 install(DIRECTORY include/${PROJECT_NAME}/
-  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+  DESTINATION include/${PROJECT_NAME}/
   FILES_MATCHING PATTERN "*.h"
   PATTERN ".svn" EXCLUDE
 )
 
 install(TARGETS ${UEYECAM_LIB_NAME} ${UEYECAM_NODELET_NAME} check_ueye_api
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+  ARCHIVE DESTINATION lib/${PROJECT_NAME}
+  LIBRARY DESTINATION lib/${PROJECT_NAME}
+  RUNTIME DESTINATION bin/${PROJECT_NAME}
   )
 
-install(FILES nodelet_plugins.xml
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-  )
+#install(FILES nodelet_plugins.xml
+#  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+#  )
 
 install(DIRECTORY launch/
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+  DESTINATION share/${PROJECT_NAME}
   )
