@@ -48,7 +48,7 @@
 #include "ueye_cam/ueye_cam_nodelet.hpp"
 #include <cstdlib> // needed for getenv()
 #include "rclcpp/rclcpp.hpp"
-#include <camera_calibration_parsers/parse.hpp>
+#include <camera_calibration_parsers/parse.h>
 #include <std_msgs/msg/u_int64.hpp>
 #include <sensor_msgs/fill_image.hpp>
 #include <sensor_msgs/image_encodings.hpp>

@@ -45,8 +45,8 @@
 * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
 
-#ifndef UEYE_CAM_DRIVER_HPP_
-#define UEYE_CAM_DRIVER_HPP_
+#ifndef DRIVER_HPP_
+#define DRIVER_HPP_
 
 
 #include <ueye.h>
@@ -507,4 +507,4 @@ protected:
 } // namespace ueye_cam
 
 
-#endif /* UEYE_CAM_DRIVER_HPP_ */
+#endif /* DRIVER_HPP_ */

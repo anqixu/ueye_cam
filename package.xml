@@ -12,6 +12,8 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
+  <build_depend>libtclap-dev</build_depend>
+
   <depend>rclcpp</depend>
   <depend>image_transport</depend>
   <depend>sensor_msgs</depend>

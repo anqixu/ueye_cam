@@ -45,12 +45,16 @@
 * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
 
-#include "ueye_cam/ueye_cam_driver.hpp"
 #include <cstring>
 
+#include "ueye_cam/driver.hpp"
 
 using namespace std;
 
+// Locally defined simple error stream for debugging
+#include <iostream>
+#define ERROR_STREAM(message) std::cout << message << std::endl;
+// #define ERROR_STREAM(message)
 
 namespace ueye_cam {
 
@@ -93,15 +97,13 @@ INT UEyeCamDriver::connectCam(int new_cam_ID) {
   if (new_cam_ID >= 0) {
     cam_id_ = new_cam_ID;
   }
-
   // Query for number of connected cameras
   if ((is_err = is_GetNumberOfCameras(&numCameras)) != IS_SUCCESS) {
-    //ERROR_STREAM("Failed query for number of connected UEye cameras (" <<
-    //  err2str(is_err) << ")");
+    ERROR_STREAM("Failed query for number of connected UEye cameras (" << err2str(is_err) << ")");
     return is_err;
   } else if (numCameras < 1) {
-    //ERROR_STREAM("No UEye cameras are connected\n");
-    //ERROR_STREAM("Hint: make sure that the IDS camera daemon (/etc/init.d/ueyeusbdrc) is running\n");
+    ERROR_STREAM("No UEye cameras are connected\n");
+    ERROR_STREAM("Hint: make sure that the IDS camera daemon (/etc/init.d/ueyeusbdrc) is running\n");
     return IS_NO_SUCCESS;
   } // NOTE: previously checked if ID < numCameras, but turns out that ID can be arbitrary
 
@@ -120,25 +122,24 @@ INT UEyeCamDriver::connectCam(int new_cam_ID) {
     is_err = is_InitCamera(&cam_handle_, nullptr); // Will block for N seconds
   }
   if (is_err != IS_SUCCESS) {
-    //ERROR_STREAM("Could not open UEye camera ID " << cam_id_ <<
-    //  " (" << err2str(is_err) << ")");
+    ERROR_STREAM("Could not open UEye camera ID " << cam_id_ <<
+      " (" << err2str(is_err) << ")");
     return is_err;
   }
 
   // Set display mode to Device Independent Bitmap (DIB)
   is_err = is_SetDisplayMode(cam_handle_, IS_SET_DM_DIB);
   if (is_err != IS_SUCCESS) {
-    //ERROR_STREAM("UEye camera ID " << cam_id_ <<
-    //  " does not support Device Independent Bitmap mode;" <<
-    //  " driver wrapper not compatible with OpenGL/DirectX modes (" << err2str(is_err) << ")");
+    ERROR_STREAM("UEye camera ID " << cam_id_ <<
+      " does not support Device Independent Bitmap mode;" <<
+      " driver wrapper not compatible with OpenGL/DirectX modes (" << err2str(is_err) << ")");
     return is_err;
   }
 
   // Fetch sensor parameters
   is_err = is_GetSensorInfo(cam_handle_, &cam_sensor_info_);
   if (is_err != IS_SUCCESS) {
-    //ERROR_STREAM("Could not poll sensor information for [" << cam_name_ <<
-    //  "] (" << err2str(is_err) << ")");
+    ERROR_STREAM("Could not poll sensor information for [" << cam_name_ << "] (" << err2str(is_err) << ")");
     return is_err;
   }
 

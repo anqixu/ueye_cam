@@ -1,7 +1,21 @@
 /*******************************************************************************
+* DO NOT MODIFY - AUTO-GENERATED
+*
+*
+* DISCLAMER:
+*
+* This project was created within an academic research setting, and thus should
+* be considered as EXPERIMENTAL code. There may be bugs and deficiencies in the
+* code, so please adjust expectations accordingly. With that said, we are
+* intrinsically motivated to ensure its correctness (and often its performance).
+* Please use the corresponding web repository tool (e.g. github/bitbucket/etc.)
+* to file bugs, suggestions, pull requests; we will do our best to address them
+* in a timely manner.
+*
+*
 * SOFTWARE LICENSE AGREEMENT (BSD LICENSE):
 *
-* Copyright (c) 2016, Kei Okada
+* Copyright (c) 2013-2016, Anqi Xu and contributors
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -31,16 +45,18 @@
 * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
 
-#include <dlfcn.h>
-#include <iostream>
+/*****************************************************************************
+** Ifdefs
+*****************************************************************************/
 
-int main(int argc, char **argv) {
-  void *handle;
-  handle = dlopen("libueye_api.so", RTLD_LAZY);
-  if ( ! handle ) {
-    std::cerr << "The official IDS uEye driver (libueye_api.so) were not detected on your machine.\n";
-    std::cerr << "You (or a system administrator) MUST still download and install the official IDS uEye drivers (http://en.ids-imaging.com/download-ueye.html).\n";
-    exit(1);
-  }
-  exit(0);
-}
+#ifndef UEYE_CAM_HPP_
+#define UEYE_CAM_HPP_
+
+/*****************************************************************************
+** Includes
+*****************************************************************************/
+
+// #include "ueye_cam/logging_macros.hpp"
+// #include "ueye_cam/ueye_cam_driver.hpp"
+
+#endif /* UEYE_CAM_HPP_ */

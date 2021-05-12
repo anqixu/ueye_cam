@@ -48,13 +48,13 @@
 #ifndef UEYE_CAM_NODELET_HPP_
 #define UEYE_CAM_NODELET_HPP_
 
-#include <image_transport/image_transport.hpp>
+#include <image_transport/image_transport.h>
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/srv/set_camera_info.hpp>
 //#include <ueye_cam/UEyeCamConfig.h>
 #include <boost/thread/mutex.hpp>
-#include <ueye_cam/ueye_cam_driver.hpp>
+#include <ueye_cam/driver.hpp>
 
 
 namespace ueye_cam {
