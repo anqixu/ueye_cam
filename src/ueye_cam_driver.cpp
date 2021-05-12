@@ -909,12 +909,13 @@ INT UEyeCamDriver::setFreeRunMode() {
 }
 
 
-INT UEyeCamDriver::setExtTriggerMode() {
+INT UEyeCamDriver::setExtTriggerMode(bool trigger_rising_edge) {
   if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
 
   INT is_err = IS_SUCCESS;
+  INT trigger_mode = trigger_rising_edge ? IS_SET_TRIGGER_LO_HI : IS_SET_TRIGGER_HI_LO;
 
-  if (!extTriggerModeActive()) {
+  if (!checkTriggerMode(trigger_mode)) {
     setStandbyMode(); // No need to check for success
 
     IS_INIT_EVENT init_events[] = {{IS_SET_EVENT_FRAME, FALSE, FALSE}};
@@ -930,7 +931,7 @@ INT UEyeCamDriver::setExtTriggerMode() {
       return is_err;
     }
 
-    if ((is_err = is_SetExternalTrigger(cam_handle_, IS_SET_TRIGGER_HI_LO)) != IS_SUCCESS) {
+    if ((is_err = is_SetExternalTrigger(cam_handle_, trigger_mode)) != IS_SUCCESS) {
       ERROR_STREAM("Could not enable falling-edge external trigger mode for [" <<
         cam_name_ << "] (" << err2str(is_err) << ")");
       return is_err;

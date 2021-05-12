@@ -115,6 +115,7 @@ UEyeCamNodelet::UEyeCamNodelet():
   cam_params_.output_rate = 0; // disable by default
   cam_params_.pixel_clock = DEFAULT_PIXEL_CLOCK;
   cam_params_.ext_trigger_mode = false;
+  cam_params_.trigger_rising_edge = false;
   cam_params_.flash_delay = 0;
   cam_params_.flash_duration = DEFAULT_FLASH_DURATION;
   cam_params_.gpio1 = 0;
@@ -205,6 +206,7 @@ void UEyeCamNodelet::onInit() {
       "Flash Delay (us):\t" << cam_params_.flash_delay << endl <<
       "Flash Duration (us):\t" << cam_params_.flash_duration << endl <<
       "Ext Trigger Mode:\t" << cam_params_.ext_trigger_mode << endl <<
+      "Trigger Rising Edge:\t" << cam_params_.trigger_rising_edge << endl <<
       "Auto Frame Rate:\t" << cam_params_.auto_frame_rate << endl <<
       "Frame Rate (Hz):\t" << cam_params_.frame_rate << endl <<
       "Output Rate (Hz):\t" << cam_params_.output_rate << endl <<
@@ -463,6 +465,14 @@ INT UEyeCamNodelet::parseROSParams(ros::NodeHandle& local_nh) {
     //       to not having been initialized yet
   } else {
     local_nh.setParam("ext_trigger_mode", cam_params_.ext_trigger_mode);
+  }
+  if (local_nh.hasParam("trigger_rising_edge")) {
+    local_nh.getParam("trigger_rising_edge", cam_params_.trigger_rising_edge);
+    // NOTE: no need to set any parameters, since external trigger / live-run
+    //       modes come into effect during frame grab loop, which is assumed
+    //       to not having been initialized yet
+  } else {
+    local_nh.setParam("trigger_rising_edge", cam_params_.trigger_rising_edge);
   }
   if (local_nh.hasParam("flash_delay")) {
     local_nh.getParam("flash_delay", cam_params_.flash_delay);
@@ -1049,7 +1059,7 @@ void UEyeCamNodelet::frameGrabLoop() {
       output_rate_mutex_.unlock();
 
       if (cam_params_.ext_trigger_mode) {
-        if (setExtTriggerMode() != IS_SUCCESS) {
+        if (setExtTriggerMode(cam_params_.trigger_rising_edge) != IS_SUCCESS) {
           ERROR_STREAM("Shutting down driver nodelet for [" << cam_name_ << "]");
           ros::shutdown();
           return;

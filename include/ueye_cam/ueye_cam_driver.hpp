@@ -321,20 +321,19 @@ public:
   INT setFreeRunMode();
 
   /**
-   * Sets current camera to external trigger mode, where a HI to LO falling-edge
-   * signal on the digital input pin of the camera will trigger the camera to
-   * capture a frame. This function also resets the digital output pin to
-   * always be LO.
+   * Sets current camera to external trigger mode, where a HI to LO or LO to HI
+   * falling-edge signal on the digital input pin of the camera will trigger 
+   * the camera to capture a frame. This function also resets the digital output 
+   * pin to always be LO.
    *
    * Note that this function only sets the mode. Frames are then grabbed by
    * calling processNextFrame().
    *
-   * IMPLEMENTATION DETAIL: currently this function supports falling-edge
-   *   trigger only, since our camera (UI-1246LE) only supports this mode
+   * \param trigger_rising_edge Whether to use rising or falling edge trigger
    *
    * \return IS_SUCCESS if successful, error flag otherwise (see err2str).
    */
-  INT setExtTriggerMode();
+  INT setExtTriggerMode(bool trigger_rising_edge);
 
   /**
    * Disables either free-run or external trigger mode, and sets the current
@@ -346,7 +345,7 @@ public:
 
   /**
    * Mirrors the camera image upside down
-   * \param flip_horizontal Wheter to flip the image upside down or not.
+   * \param flip_horizontal Whether to flip the image upside down or not.
    *
    * \return IS_SUCCESS if successful, error flag otherwise (see err2str).
    */
@@ -354,7 +353,7 @@ public:
 
   /**
    * Mirrors the camera image left to right
-   * \param flip_vertical Wheter to flip the image left to right or not.
+   * \param flip_vertical Whether to flip the image left to right or not.
    *
    * \return IS_SUCCESS if successful, error flag otherwise (see err2str).
    */
@@ -384,8 +383,15 @@ public:
   }
 
   inline bool extTriggerModeActive() {
+    INT trigger_mode = is_SetExternalTrigger(cam_handle_, IS_GET_EXTERNALTRIGGER);
     return ((cam_handle_ != HIDS(0)) &&
-        (is_SetExternalTrigger(cam_handle_, IS_GET_EXTERNALTRIGGER) == IS_SET_TRIGGER_HI_LO) &&
+        (trigger_mode == IS_SET_TRIGGER_HI_LO || trigger_mode == IS_SET_TRIGGER_LO_HI) &&
+        (is_CaptureVideo(cam_handle_, IS_GET_LIVE) == TRUE));
+  }
+
+  inline bool checkTriggerMode(INT trigger_mode) {
+    return ((cam_handle_ != HIDS(0)) &&
+        (is_SetExternalTrigger(cam_handle_, IS_GET_EXTERNALTRIGGER) == trigger_mode) &&
         (is_CaptureVideo(cam_handle_, IS_GET_LIVE) == TRUE));
   }
 
