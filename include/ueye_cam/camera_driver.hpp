@@ -1,21 +1,7 @@
 /*******************************************************************************
-* DO NOT MODIFY - AUTO-GENERATED
-*
-*
-* DISCLAMER:
-*
-* This project was created within an academic research setting, and thus should
-* be considered as EXPERIMENTAL code. There may be bugs and deficiencies in the
-* code, so please adjust expectations accordingly. With that said, we are
-* intrinsically motivated to ensure its correctness (and often its performance).
-* Please use the corresponding web repository tool (e.g. github/bitbucket/etc.)
-* to file bugs, suggestions, pull requests; we will do our best to address them
-* in a timely manner.
-*
-*
 * SOFTWARE LICENSE AGREEMENT (BSD LICENSE):
 *
-* Copyright (c) 2013-2016, Anqi Xu and contributors
+* Copyright (c) 2013-2021, Anqi Xu and contributors
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -45,8 +31,8 @@
 * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
 
-#ifndef DRIVER_HPP_
-#define DRIVER_HPP_
+#ifndef CAMERA_DRIVER_HPP_
+#define CAMERA_DRIVER_HPP_
 
 
 #include <ueye.h>
@@ -81,7 +67,7 @@ namespace ueye_cam {
 /**
  * Thin wrapper for UEye camera API from IDS Imaging Development Systems GMBH.
  */
-class UEyeCamDriver {
+class Driver {
 public:
   constexpr static int ANY_CAMERA = 0;
 
@@ -89,12 +75,12 @@ public:
   /**
    * Initializes member variables.
    */
-  UEyeCamDriver(int cam_ID = ANY_CAMERA, std::string cam_name = "camera");
+  Driver(int cam_ID = ANY_CAMERA, std::string cam_name = "camera");
 
   /**
    * Terminates UEye camera interface.
    */
-  virtual ~UEyeCamDriver();
+  virtual ~Driver();
 
   /**
    * Initializes and loads the UEye camera handle.
@@ -507,4 +493,4 @@ protected:
 } // namespace ueye_cam
 
 
-#endif /* DRIVER_HPP_ */
+#endif /* CAMERA_DRIVER_HPP_ */

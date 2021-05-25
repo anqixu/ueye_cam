@@ -30,3 +30,39 @@
 * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
+
+/*****************************************************************************
+ ** Includes
+ *****************************************************************************/
+
+#include <string>
+
+#include "../../include/ueye_cam/camera_parameters.hpp"
+
+
+/*****************************************************************************
+ ** Namespaces
+ *****************************************************************************/
+
+namespace ueye_cam
+{
+
+/*****************************************************************************
+ ** Constants
+ *****************************************************************************/
+
+const std::string ColorMode::MONO8 = "mono8";
+const std::string ColorMode::MONO10 = "mono10";
+const std::string ColorMode::MONO12 = "mono12";
+const std::string ColorMode::MONO16 = "mono16";
+const std::string ColorMode::RGB8 = "rgb8";
+const std::string ColorMode::RGB10 = "rgb10";
+const std::string ColorMode::RGB10u = "rgb10u";
+const std::string ColorMode::RGB12u = "rgb12u";
+const std::string ColorMode::BGR8 = "bgr8";
+const std::string ColorMode::BGR10 = "bgr10";
+const std::string ColorMode::BGR10u = "bgr10u";
+const std::string ColorMode::BGR12u = "bgr12u";
+const std::string ColorMode::BAYER_RGGB8 = "bayer_rggb8";
+
+} // namespace ueye_cam

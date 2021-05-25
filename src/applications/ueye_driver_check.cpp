@@ -1,7 +1,7 @@
 /*******************************************************************************
 * SOFTWARE LICENSE AGREEMENT (BSD LICENSE):
 *
-* Copyright (c) 2016, Kei Okada, Daniel Stonier
+* Copyright (c) 2013-2021, Anqi Xu and contributors
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -33,45 +33,55 @@
 
 #include <dlfcn.h>
 #include <iostream>
-#include <sstream>
 
 #include <tclap/CmdLine.h>
 #include <tclap/SwitchArg.h>
+#include <ueye_cam/camera_driver.hpp>
+
+#include "ueye_cam/utilities.hpp"
 
 
 int main(int argc, char** argv) {
+	bool sdk_version;
+	int camera_id;
+
 
     try {
-        TCLAP::CmdLine cmd("UEye SDK installation check.", ' ', "0.1");
+        TCLAP::CmdLine cmd("Standalone ueye_cam driver check (non-ros).", ' ', "0.1");
+        TCLAP::SwitchArg switch_version("s", "sdk-version", "Fetch the SDK version and compare with requirements.",false);
+        TCLAP::ValueArg<int> value_camera_id("c", "camera-id", "Choose a camera (run 'ueyesetid -d' to discover, '0' for any camera).", false, -1, "integer");
+        cmd.add(switch_version);
+        cmd.add(value_camera_id);
         cmd.parse(argc,argv);
+        sdk_version = switch_version.getValue();
+        camera_id = value_camera_id.getValue();
     } catch ( TCLAP::ArgException &e ) {
         std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl;
     };
 
-	// Check for availability of the library and provide a useful hint if it's not discovered.
-	// This is useful as a check since this package *will* build with header and library
-    // fetched on-the-fly, but not make that available for the install.
-    void *handle = dlopen("libueye_api.so", RTLD_LAZY);
-    if ( ! handle ) {
-        std::cerr << "The uEye library (libueye_api.so) could not be loaded. Please check:\n"
-            " - libueye_api.so is discoverable (e.g. on LD_LIBRARY_PATH)\n"
-		    " - the official IDS uEye SDK has been installed (http://en.ids-imaging.com/download-ueye.html)\n"
-            "   (NB: this package will build with header and library fetched-on-the-fly if not installed,\n"
-            "    but this is neither sufficient, nor made available for the runtime environment (licensing reasons).\n" << std::endl;
-        exit(1);
+    if ( sdk_version ) {
+        std::cout << "UEye SDK Version: " << ueye_cam::sdk_version() << std::endl;
+        std::cout << "Required Version: " << ueye_cam::sdk_required_version() << std::endl;
     }
-    // reset errors
-    dlerror();
+    if ( camera_id >= 0 ) {
+    	ueye_cam::Driver driver(camera_id);
+    	int result = driver.connectCam();
+    	if ( result != 0 ) {
+    		std::cerr << "Could not connect to camera [" << ueye_cam::Driver::err2str(result) << "]" << std::endl;
+    		exit(1);
+    	}
+    	std::cout << "Connected to camera '" << camera_id << "'" << std::endl;
+    	driver.processNextFrame(500);
+    	// const char* unused_buffer = driver.processNextFrame(500);
+    	// int size = driver.cam_aoi_.s32Height * driver.cam_aoi_.s32Width * driver.bits_per_pixel_ / 8;
+    	// std::cout << "Cam buffer size: " << driver.cam_buffer_size_ << std::endl;
 
-    typedef int (*version_callback_type)();
-
-    version_callback_type is_GetDLLVersion = (version_callback_type) dlsym(handle, "is_GetDLLVersion");
-	int version = is_GetDLLVersion();
-	int major_version = version >> 24;
-	int minor_version = (version - (major_version << 24)) >> 16;
-	int patch_version = (version - (major_version << 24) - (minor_version << 16));
-	std::ostringstream ostream;
-	ostream << major_version << "." << minor_version << "." << patch_version;
-	std::cout << "UEye SDK Version: " << ostream.str() << std::endl;
+    }
+    if ( !sdk_version && (camera_id < 0)) {
+    	std::cout << "\nFor options, run 'ueye_driver_check --help'.\n" << std::endl;
+    	std::cout <<
+    		"Alternatively configure and test your library and camera with the utilities\n"
+    		"provided by the sdk - idscameramanager, ueyesetip, ueyesetid, ueyedemo, ...\n" << std::endl;
+    }
     exit(0);
 }

@@ -14,11 +14,16 @@
 
   <build_depend>libtclap-dev</build_depend>
 
-  <depend>rclcpp</depend>
-  <depend>image_transport</depend>
-  <depend>sensor_msgs</depend>
   <depend>camera_calibration_parsers</depend>
   <depend>camera_info_manager</depend>
+  <depend>image_transport</depend>
+  <depend>rclcpp</depend>
+  <depend>rcl_interfaces</depend>
+  <depend>sensor_msgs</depend>
+
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

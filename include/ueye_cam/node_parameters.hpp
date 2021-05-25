@@ -31,38 +31,62 @@
 * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
 
+#ifndef UEYE_CAM_NODE_PARAMETERS_HPP_
+#define UEYE_CAM_NODE_PARAMETERS_HPP_
+
 /*****************************************************************************
-** Ifdefs
+** Includes
 *****************************************************************************/
 
-#ifndef UEYE_CAM_UTILITIES_HPP_
-#define UEYE_CAM_UTILITIES_HPP_
-
-
-/*****************************************************************************
- ** Includes
- *****************************************************************************/
-
+#include <sstream>
 #include <string>
 
-/*****************************************************************************
- ** Namespaces
- *****************************************************************************/
+#include "camera_driver.hpp"
 
-namespace ueye_cam
-{
+/*****************************************************************************
+** Namespaces
+*****************************************************************************/
+
+namespace ueye_cam {
 
 /*****************************************************************************
 ** Interfaces
 *****************************************************************************/
 
-std::string sdk_version();
-std::string sdk_required_version();
+// TODO: Consider converting to a richer container of ParameterValue / ParameterDescriptor pairs.
+//       With convenience methods.
+//       This will programmatically embed descriptions and permitted ranges.
+struct NodeParameters {
+  std::string camera_name;
+  int camera_id;
+  std::string frame_name;
+  std::string topic_name;
+  std::string camera_intrinsics_filename;
+  std::string camera_parameters_filename;
 
-#endif /* UEYE_CAM_UTILITIES_HPP_ */
+  NodeParameters(const int& camera_id=Driver::ANY_CAMERA, const std::string& camera_name="camera"):
+    camera_name(camera_name),
+    camera_id(camera_id),
+    frame_name("camera"),
+    topic_name("image_raw"),
+    camera_intrinsics_filename(""),
+    camera_parameters_filename("")
+  {}
 
-/*****************************************************************************
- ** Namespaces
- *****************************************************************************/
+  std::string to_str() const {
+    std::ostringstream ostream;
+    ostream << "Node Parameters\n";
+    ostream << "Camera Name:\t\t\t" << camera_name << "\n";
+    ostream << "Camera Id:\t\t\t" << camera_id << "\n";
+    ostream << "Frame Name:\t\t\t" << frame_name << "\n";
+    ostream << "Topic Name:\t\t\t" << topic_name << "\n";
+    ostream << "Intrinsics Filename:\t\t" << camera_intrinsics_filename << "\n";
+    ostream << "Parameters Filename:\t\t" << camera_parameters_filename << "\n";
+    return ostream.str();
+  }
+};
 
 } // namespace ueye_cam
+
+
+#endif /* UEYE_CAM_NODE_PARAMETERS_HPP_ */

@@ -1,21 +1,7 @@
 /*******************************************************************************
-* DO NOT MODIFY - AUTO-GENERATED
-*
-*
-* DISCLAMER:
-*
-* This project was created within an academic research setting, and thus should
-* be considered as EXPERIMENTAL code. There may be bugs and deficiencies in the
-* code, so please adjust expectations accordingly. With that said, we are
-* intrinsically motivated to ensure its correctness (and often its performance).
-* Please use the corresponding web repository tool (e.g. github/bitbucket/etc.)
-* to file bugs, suggestions, pull requests; we will do our best to address them
-* in a timely manner.
-*
-*
 * SOFTWARE LICENSE AGREEMENT (BSD LICENSE):
 *
-* Copyright (c) 2013-2016, Anqi Xu and contributors
+* Copyright (c) 2013-2021, Anqi Xu and contributors
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -47,7 +33,7 @@
 
 #include <cstring>
 
-#include "ueye_cam/driver.hpp"
+#include "../../include/ueye_cam/camera_driver.hpp"
 
 using namespace std;
 
@@ -61,7 +47,7 @@ namespace ueye_cam {
 
 // Note that all of these default settings will be overwritten
 // by syncCamConfig() during connectCam()
-UEyeCamDriver::UEyeCamDriver(int cam_ID, string cam_name):
+Driver::Driver(int cam_ID, string cam_name):
     cam_handle_(HIDS(0)),
     cam_buffer_(nullptr),
     cam_buffer_id_(0),
@@ -81,12 +67,12 @@ UEyeCamDriver::UEyeCamDriver(int cam_ID, string cam_name):
 }
 
 
-UEyeCamDriver::~UEyeCamDriver() {
+Driver::~Driver() {
   disconnectCam();
 }
 
 
-INT UEyeCamDriver::connectCam(int new_cam_ID) {
+INT Driver::connectCam(int new_cam_ID) {
   INT is_err = IS_SUCCESS;
   int numCameras;
 
@@ -153,7 +139,7 @@ INT UEyeCamDriver::connectCam(int new_cam_ID) {
 }
 
 
-INT UEyeCamDriver::disconnectCam() {
+INT Driver::disconnectCam() {
   INT is_err = IS_SUCCESS;
 
   if (isConnected()) {
@@ -176,7 +162,7 @@ INT UEyeCamDriver::disconnectCam() {
 }
 
 
-INT UEyeCamDriver::loadCamConfig(string filename, bool ignore_load_failure) {
+INT Driver::loadCamConfig(string filename, bool ignore_load_failure) {
   if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
 
   INT is_err = IS_SUCCESS;
@@ -203,7 +189,7 @@ INT UEyeCamDriver::loadCamConfig(string filename, bool ignore_load_failure) {
 }
 
 
-INT UEyeCamDriver::setColorMode(string& mode, bool reallocate_buffer) {
+INT Driver::setColorMode(string& mode, bool reallocate_buffer) {
   if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
 
   INT is_err = IS_SUCCESS;
@@ -240,7 +226,7 @@ INT UEyeCamDriver::setColorMode(string& mode, bool reallocate_buffer) {
 }
 
 
-INT UEyeCamDriver::setResolution(INT& image_width, INT& image_height,
+INT Driver::setResolution(INT& image_width, INT& image_height,
     INT& image_left, INT& image_top, bool reallocate_buffer) {
   if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
 
@@ -294,7 +280,7 @@ INT UEyeCamDriver::setResolution(INT& image_width, INT& image_height,
 }
 
 
-INT UEyeCamDriver::setSubsampling(int& rate, bool reallocate_buffer) {
+INT Driver::setSubsampling(int& rate, bool reallocate_buffer) {
   if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
 
   INT is_err = IS_SUCCESS;
@@ -366,7 +352,7 @@ INT UEyeCamDriver::setSubsampling(int& rate, bool reallocate_buffer) {
 }
 
 
-INT UEyeCamDriver::setBinning(int& rate, bool reallocate_buffer) {
+INT Driver::setBinning(int& rate, bool reallocate_buffer) {
   if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
 
   INT is_err = IS_SUCCESS;
@@ -438,7 +424,7 @@ INT UEyeCamDriver::setBinning(int& rate, bool reallocate_buffer) {
 }
 
 
-INT UEyeCamDriver::setSensorScaling(double& rate, bool reallocate_buffer) {
+INT Driver::setSensorScaling(double& rate, bool reallocate_buffer) {
   if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
 
   INT is_err = IS_SUCCESS;
@@ -489,7 +475,7 @@ INT UEyeCamDriver::setSensorScaling(double& rate, bool reallocate_buffer) {
 }
 
 
-INT UEyeCamDriver::setGain(bool& auto_gain, INT& master_gain_prc, INT& red_gain_prc,
+INT Driver::setGain(bool& auto_gain, INT& master_gain_prc, INT& red_gain_prc,
     INT& green_gain_prc, INT& blue_gain_prc, bool& gain_boost) {
   if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
 
@@ -563,7 +549,7 @@ INT UEyeCamDriver::setGain(bool& auto_gain, INT& master_gain_prc, INT& red_gain_
 }
 
 
-INT UEyeCamDriver::setSoftwareGamma(INT& software_gamma) {
+INT Driver::setSoftwareGamma(INT& software_gamma) {
   if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
 
   INT is_err = IS_SUCCESS;
@@ -588,7 +574,7 @@ INT UEyeCamDriver::setSoftwareGamma(INT& software_gamma) {
 }
 
 
-INT UEyeCamDriver::setExposure(bool& auto_exposure, double& auto_exposure_reference, double& exposure_ms) {
+INT Driver::setExposure(bool& auto_exposure, double& auto_exposure_reference, double& exposure_ms) {
   if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
 
   INT is_err = IS_SUCCESS;
@@ -642,7 +628,7 @@ INT UEyeCamDriver::setExposure(bool& auto_exposure, double& auto_exposure_refere
 }
 
 
-INT UEyeCamDriver::setWhiteBalance(bool& auto_white_balance, INT& red_offset,
+INT Driver::setWhiteBalance(bool& auto_white_balance, INT& red_offset,
     INT& blue_offset) {
   if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
 
@@ -685,7 +671,7 @@ INT UEyeCamDriver::setWhiteBalance(bool& auto_white_balance, INT& red_offset,
 }
 
 
-INT UEyeCamDriver::setFrameRate(bool& auto_frame_rate, double& frame_rate_hz) {
+INT Driver::setFrameRate(bool& auto_frame_rate, double& frame_rate_hz) {
   if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
 
   INT is_err = IS_SUCCESS;
@@ -741,7 +727,7 @@ INT UEyeCamDriver::setFrameRate(bool& auto_frame_rate, double& frame_rate_hz) {
 }
 
 
-INT UEyeCamDriver::setPixelClockRate(INT& clock_rate_mhz) {
+INT Driver::setPixelClockRate(INT& clock_rate_mhz) {
   if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
 
   INT is_err = IS_SUCCESS;
@@ -788,7 +774,7 @@ INT UEyeCamDriver::setPixelClockRate(INT& clock_rate_mhz) {
 }
 
 
-INT UEyeCamDriver::setFlashParams(INT& delay_us, UINT& duration_us) {
+INT Driver::setFlashParams(INT& delay_us, UINT& duration_us) {
   INT is_err = IS_SUCCESS;
 
   // Make sure parameters are within range supported by camera
@@ -827,7 +813,7 @@ INT UEyeCamDriver::setFlashParams(INT& delay_us, UINT& duration_us) {
 }
 
 
-INT UEyeCamDriver::setGpioMode(const int& gpio, int& mode, double& pwm_freq, double& pwm_duty_cycle) {
+INT Driver::setGpioMode(const int& gpio, int& mode, double& pwm_freq, double& pwm_duty_cycle) {
   /* Set GPIO to a specific mode. */
   INT is_err = IS_SUCCESS;
   IO_GPIO_CONFIGURATION gpioConfiguration;
@@ -872,7 +858,7 @@ INT UEyeCamDriver::setGpioMode(const int& gpio, int& mode, double& pwm_freq, dou
 }
 
 
-INT UEyeCamDriver::setFreeRunMode() {
+INT Driver::setFreeRunMode() {
   if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
 
   INT is_err = IS_SUCCESS;
@@ -915,7 +901,7 @@ INT UEyeCamDriver::setFreeRunMode() {
 }
 
 
-INT UEyeCamDriver::setExtTriggerMode(bool trigger_rising_edge) {
+INT Driver::setExtTriggerMode(bool trigger_rising_edge) {
   if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
 
   INT is_err = IS_SUCCESS;
@@ -955,7 +941,7 @@ INT UEyeCamDriver::setExtTriggerMode(bool trigger_rising_edge) {
 }
 
 
-INT UEyeCamDriver::setMirrorUpsideDown(bool flip_horizontal){
+INT Driver::setMirrorUpsideDown(bool flip_horizontal){
   if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
 
   INT is_err = IS_SUCCESS;
@@ -968,7 +954,7 @@ INT UEyeCamDriver::setMirrorUpsideDown(bool flip_horizontal){
 }
 
 
-INT UEyeCamDriver::setMirrorLeftRight(bool flip_vertical){
+INT Driver::setMirrorLeftRight(bool flip_vertical){
   if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
 
   INT is_err = IS_SUCCESS;
@@ -981,7 +967,7 @@ INT UEyeCamDriver::setMirrorLeftRight(bool flip_vertical){
 }
 
 
-INT UEyeCamDriver::setStandbyMode() {
+INT Driver::setStandbyMode() {
   if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
 
   INT is_err = IS_SUCCESS;
@@ -1046,7 +1032,7 @@ INT UEyeCamDriver::setStandbyMode() {
 }
 
 
-const char* UEyeCamDriver::processNextFrame(UINT timeout_ms) {
+const char* Driver::processNextFrame(UINT timeout_ms) {
   if (!freeRunModeActive() && !extTriggerModeActive()) return nullptr;
 
   INT is_err = IS_SUCCESS;
@@ -1071,7 +1057,7 @@ const char* UEyeCamDriver::processNextFrame(UINT timeout_ms) {
 }
 
 
-INT UEyeCamDriver::syncCamConfig(string dft_mode_str) {
+INT Driver::syncCamConfig(string dft_mode_str) {
   INT is_err = IS_SUCCESS;
 
   // Synchronize resolution, color mode, bits per pixel settings
@@ -1163,7 +1149,7 @@ INT UEyeCamDriver::syncCamConfig(string dft_mode_str) {
 }
 
 
-INT UEyeCamDriver::reallocateCamBuffer() {
+INT Driver::reallocateCamBuffer() {
   INT is_err = IS_SUCCESS;
 
   // Stop capture to prevent access to memory buffer
@@ -1227,7 +1213,7 @@ INT UEyeCamDriver::reallocateCamBuffer() {
 }
 
 
-const char* UEyeCamDriver::err2str(INT error) {
+const char* Driver::err2str(INT error) {
 #define CASE(s) case s: return #s; break
   switch (error) {
   CASE(IS_NO_SUCCESS);
@@ -1324,7 +1310,7 @@ const char* UEyeCamDriver::err2str(INT error) {
 }
 
 
-const char* UEyeCamDriver::colormode2str(INT mode) {
+const char* Driver::colormode2str(INT mode) {
 #define CASE(s) case s: return #s; break
   switch (mode) {
   CASE(IS_CM_MONO16);
@@ -1392,7 +1378,7 @@ const char* UEyeCamDriver::colormode2str(INT mode) {
 }
 
 
-INT UEyeCamDriver::colormode2bpp(INT mode) {
+INT Driver::colormode2bpp(INT mode) {
   switch (mode) {
     case IS_CM_SENSOR_RAW8:
     case IS_CM_MONO8:
@@ -1436,7 +1422,7 @@ INT UEyeCamDriver::colormode2bpp(INT mode) {
 }
 
 
-bool UEyeCamDriver::isSupportedColorMode(INT mode) {
+bool Driver::isSupportedColorMode(INT mode) {
   switch (mode) {
     case IS_CM_SENSOR_RAW8:
     case IS_CM_SENSOR_RAW10:
@@ -1475,7 +1461,7 @@ bool UEyeCamDriver::isSupportedColorMode(INT mode) {
 }
 
 
-const std::map<std::string, INT> UEyeCamDriver::COLOR_DICTIONARY = {
+const std::map<std::string, INT> Driver::COLOR_DICTIONARY = {
     { "bayer_rggb8", IS_CM_SENSOR_RAW8 },
     { "bayer_rggb10", IS_CM_SENSOR_RAW10 },
     { "bayer_rggb12", IS_CM_SENSOR_RAW12 },
@@ -1495,7 +1481,7 @@ const std::map<std::string, INT> UEyeCamDriver::COLOR_DICTIONARY = {
 };
 
 
-INT UEyeCamDriver::name2colormode(const std::string& name) {
+INT Driver::name2colormode(const std::string& name) {
   const std::map<std::string, INT>::const_iterator iter = COLOR_DICTIONARY.find(name);
   if (iter!=COLOR_DICTIONARY.end()) {
     return iter->second;
@@ -1506,7 +1492,7 @@ INT UEyeCamDriver::name2colormode(const std::string& name) {
 }
 
 
-const std::string UEyeCamDriver::colormode2name(INT mode) {
+const std::string Driver::colormode2name(INT mode) {
   for (const std::pair<std::string, INT>& value: COLOR_DICTIONARY) {
     if (value.second == mode) {
       return value.first;
@@ -1516,7 +1502,7 @@ const std::string UEyeCamDriver::colormode2name(INT mode) {
 }
 
 
-const std::function<void*(void*, void*, size_t)> UEyeCamDriver::getUnpackCopyFunc(INT color_mode) {
+const std::function<void*(void*, void*, size_t)> Driver::getUnpackCopyFunc(INT color_mode) {
   switch (color_mode) {
     case IS_CM_RGB10_PACKED:
     case IS_CM_BGR10_PACKED:
@@ -1537,7 +1523,7 @@ const std::function<void*(void*, void*, size_t)> UEyeCamDriver::getUnpackCopyFun
 }
 
 
-void* UEyeCamDriver::unpackRGB10(void* dst, void* src, size_t num) {
+void* Driver::unpackRGB10(void* dst, void* src, size_t num) {
   // UEye Driver 4.80.2 Linux 64 bit:
   // pixel format seems to be
   // 00BBBBBB BBBBGGGG GGGGGGRR RRRRRRRR
@@ -1565,7 +1551,7 @@ void* UEyeCamDriver::unpackRGB10(void* dst, void* src, size_t num) {
 }
 
 
-void* UEyeCamDriver::unpack10u(void* dst, void* src, size_t num) {
+void* Driver::unpack10u(void* dst, void* src, size_t num) {
   // UEye Driver 4.80.2 Linux 64 bit:
   // pixel format seems to be
   // 000000CC CCCCCCCC
@@ -1582,7 +1568,7 @@ void* UEyeCamDriver::unpack10u(void* dst, void* src, size_t num) {
 }
 
 
-void* UEyeCamDriver::unpack12u(void* dst, void* src, size_t num) {
+void* Driver::unpack12u(void* dst, void* src, size_t num) {
   // UEye Driver 4.80.2 Linux 64 bit:
   // pixel format seems to be
   // 0000CCCC CCCCCCCC
@@ -1599,7 +1585,7 @@ void* UEyeCamDriver::unpack12u(void* dst, void* src, size_t num) {
 }
 
 
-bool UEyeCamDriver::getTimestamp(UEYETIME *timestamp) {
+bool Driver::getTimestamp(UEYETIME *timestamp) {
   UEYEIMAGEINFO ImageInfo;
   if(is_GetImageInfo (cam_handle_, cam_buffer_id_, &ImageInfo, sizeof (ImageInfo)) == IS_SUCCESS) {
     *timestamp = ImageInfo.TimestampSystem;
@@ -1609,7 +1595,7 @@ bool UEyeCamDriver::getTimestamp(UEYETIME *timestamp) {
 }
 
 
-bool UEyeCamDriver::getClockTick(uint64_t *tick) {
+bool Driver::getClockTick(uint64_t *tick) {
   UEYEIMAGEINFO ImageInfo;
   if(is_GetImageInfo (cam_handle_, cam_buffer_id_, &ImageInfo, sizeof (ImageInfo)) == IS_SUCCESS) {
     *tick = ImageInfo.u64TimestampDevice;

@@ -5,6 +5,11 @@
 cmake_minimum_required(VERSION 3.5)
 project(ueye_cam)
 
+# Turn -isystem off. Actually like to see warnings from underlying packages
+# and regardless, have run into trouble because of the ordering it induces.
+set(CMAKE_NO_SYSTEM_FROM_IMPORTED TRUE)
+# include_directories(/opt/ros/dashing/include)
+
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
 endif()
@@ -24,13 +29,14 @@ endif()
 ##############################################################################
 
 find_package(ament_cmake REQUIRED)
-find_package(rclcpp REQUIRED)
-#find_package(rclcpp_components REQUIRED)
-#find_package(dynamic_reconfigure REQUIRED)
-find_package(image_transport REQUIRED)
-find_package(sensor_msgs REQUIRED)
 find_package(camera_calibration_parsers REQUIRED)
 find_package(camera_info_manager REQUIRED)
+find_package(image_transport REQUIRED)
+find_package(rcl_interfaces REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
+# find_package(dynamic_reconfigure REQUIRED)
+find_package(sensor_msgs REQUIRED)
 
 ##############################################################################
 # UEye Drivers
@@ -71,26 +77,6 @@ add_subdirectory(src)
 # ...
 ##############################################################################
 
-set(UEYECAM_NODELET_NAME ueye_cam_nodelet)
-set(UEYECAM_LIB_NAME ueye_wrapper)
-
-set(UEYECAM_LIB_SOURCES
-  src/ueye_cam_driver.cpp
-)
-
-set(UEYECAM_LIB_HEADERS
-  include/ueye_cam/logging_macros.hpp
-  include/ueye_cam/ueye_cam_driver.hpp
-)
-
-set(UEYECAM_NODELET_SOURCES
-  src/ueye_cam_nodelet.cpp
-)
-
-set(UEYECAM_NODELET_HEADERS
-  include/ueye_cam/ueye_cam_nodelet.hpp
-)
-
 # TODO: Re-enable
 #generate_dynamic_reconfigure_options(
 #  cfg/UEyeCam.cfg
@@ -103,16 +89,6 @@ set(UEYECAM_NODELET_HEADERS
 #  CATKIN_DEPENDS roscpp nodelet dynamic_reconfigure image_transport sensor_msgs camera_calibration_parsers camera_info_manager
 #  )
 
-# TODO: Obsolete in favour of modern cmake with each target
-#include_directories(
-#  include
-#  ${UEYE_INCLUDE_DIR}
-#  )
-
-# TODO: Re-enable
-# add_library(${UEYECAM_LIB_NAME} ${UEYECAM_LIB_SOURCES} ${UEYECAM_LIB_HEADERS})
-# target_link_libraries(${UEYECAM_LIB_NAME} ${UEYE_LIBRARY})
-
 # TODO: Re-enable
 # add_library(${UEYECAM_NODELET_NAME} ${UEYECAM_NODELET_SOURCES} ${UEYECAM_NODELET_HEADERS})
 # target_link_libraries(${UEYECAM_NODELET_NAME} ${UEYECAM_LIB_NAME})
@@ -120,37 +96,32 @@ set(UEYECAM_NODELET_HEADERS
 #add_dependencies(${UEYECAM_NODELET_NAME} ${PROJECT_NAME}_gencfg)
 
 # TODO: Re-enable
-# install(TARGETS ${UEYECAM_LIB_NAME} ${UEYECAM_NODELET_NAME}
-#   ARCHIVE DESTINATION lib/${PROJECT_NAME}
-#   LIBRARY DESTINATION lib/${PROJECT_NAME}
-#   RUNTIME DESTINATION bin/${PROJECT_NAME}
-#   )
-
-# TODO: Re-enable
 # install(FILES nodelet_plugins.xml
 #   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 # )
 
-# TODO: Re-enable
-# install(DIRECTORY launch/
-#   DESTINATION share/${PROJECT_NAME}
-#   )
+install(
+  DIRECTORY
+    config
+    launch
+  DESTINATION share/${PROJECT_NAME}
+)
 
 ##############################################################################
 # Exports
 ##############################################################################
 
-# Downstream CMake3 compatibility
-# ament_export_targets(${PROJECT_NAME})
-# Downstream CMake2 compatibility
-# ament_export_include_directories(include)
+# Modern CMake (CMake3) exports
+# Dashing
+ament_export_interfaces(HAS_LIBRARY_TARGET ${PROJECT_NAME})
+# Foxy and beyond
+# ament_export_targets(HAS_LIBRARY_TARGET ${PROJECT_NAME})
 
-# ament_export_dependencies(
-#     ecl_concepts
-#     ecl_config
-#     ecl_errors
-#     ecl_exceptions
-#     ecl_mpl
-#     ecl_type_traits
-# )
+# CMake2 exports
+ament_export_include_directories(include)
+
+ament_export_dependencies(
+  rclcpp
+  sensor_msgs
+)
 ament_package()
