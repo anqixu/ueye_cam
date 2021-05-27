@@ -8,7 +8,6 @@ project(ueye_cam)
 # Turn -isystem off. Actually like to see warnings from underlying packages
 # and regardless, have run into trouble because of the ordering it induces.
 set(CMAKE_NO_SYSTEM_FROM_IMPORTED TRUE)
-# include_directories(/opt/ros/dashing/include)
 
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
@@ -35,18 +34,16 @@ find_package(image_transport REQUIRED)
 find_package(rcl_interfaces REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
-# find_package(dynamic_reconfigure REQUIRED)
 find_package(sensor_msgs REQUIRED)
 
 ##############################################################################
 # UEye Drivers
 ##############################################################################
 
-# Require a user to ensure that an installation is on their path somewhere.
-# If it's in a custom location, append a path to CMAKE_PREFIX_PATH to
-# point to the root of your ueye sdk installation (it should be home to
-# include and lib subdirectories containing header and libraries
-# respectively).
+# If you have an official installation of the IDS drivers they will
+# be on your system path. Check for that here and if not found, download
+# header and library on-the-fly for the build (this won't be made
+# available for the runtime environment though).
 find_library(UEYE_LIBRARY ueye_api)
 find_path(UEYE_INCLUDE_DIR ueye.h)
 if(UEYE_LIBRARY)
@@ -63,7 +60,7 @@ message(STATUS "  UEYE_INCLUDE_DIR: ${UEYE_INCLUDE_DIR}")
 ##############################################################################
 
 # Populate ${PROJECT_NAME}_VERSION from xml
-#  - useful for setting version suffixes on libraries.
+# Useful for setting version suffixes on libraries.
 ament_package_xml()
 
 ##############################################################################
@@ -74,31 +71,8 @@ add_subdirectory(include)
 add_subdirectory(src)
 
 ##############################################################################
-# ...
+# Data Resources
 ##############################################################################
-
-# TODO: Re-enable
-#generate_dynamic_reconfigure_options(
-#  cfg/UEyeCam.cfg
-#  )
-
-# TODO: Re-enable in ament form or clear
-#catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES ${UEYECAM_LIB_NAME} ${UEYECAM_NODELET_NAME}
-#  CATKIN_DEPENDS roscpp nodelet dynamic_reconfigure image_transport sensor_msgs camera_calibration_parsers camera_info_manager
-#  )
-
-# TODO: Re-enable
-# add_library(${UEYECAM_NODELET_NAME} ${UEYECAM_NODELET_SOURCES} ${UEYECAM_NODELET_HEADERS})
-# target_link_libraries(${UEYECAM_NODELET_NAME} ${UEYECAM_LIB_NAME})
-# ament_target_dependencies(${UEYECAM_NODELET_NAME} rclcpp image_transport sensor_msgs camera_calibration_parsers camera_info_manager)
-#add_dependencies(${UEYECAM_NODELET_NAME} ${PROJECT_NAME}_gencfg)
-
-# TODO: Re-enable
-# install(FILES nodelet_plugins.xml
-#   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-# )
 
 install(
   DIRECTORY
@@ -112,15 +86,17 @@ install(
 ##############################################################################
 
 # Modern CMake (CMake3) exports
-# Dashing
-ament_export_interfaces(HAS_LIBRARY_TARGET ${PROJECT_NAME})
-# Foxy and beyond
-# ament_export_targets(HAS_LIBRARY_TARGET ${PROJECT_NAME})
+ament_export_interfaces(HAS_LIBRARY_TARGET ${PROJECT_NAME}) # Dashing
+# ament_export_targets(HAS_LIBRARY_TARGET ${PROJECT_NAME})  # Foxy+
 
 # CMake2 exports
 ament_export_include_directories(include)
 
 ament_export_dependencies(
+  camera_calibration_parsers
+  camera_info_manager
+  image_transport
+  rcl_interfaces
   rclcpp
   sensor_msgs
 )

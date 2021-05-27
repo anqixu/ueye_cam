@@ -48,18 +48,19 @@ namespace ueye_cam {
 // Note that all of these default settings will be overwritten
 // by syncCamConfig() during connectCam()
 Driver::Driver(int cam_ID, string cam_name):
-    cam_handle_(HIDS(0)),
-    cam_buffer_(nullptr),
-    cam_buffer_id_(0),
-    cam_buffer_pitch_(0),
-    cam_buffer_size_(0),
-    cam_name_(cam_name),
-    cam_id_(cam_ID),
-    cam_subsampling_rate_(1),
-    cam_binning_rate_(1),
-    cam_sensor_scaling_rate_(1),
-    color_mode_(IS_CM_MONO8),
-    bits_per_pixel_(8) {
+  cam_handle_(HIDS(0)),
+  cam_buffer_(nullptr),
+  cam_buffer_id_(0),
+  cam_buffer_pitch_(0),
+  cam_buffer_size_(0),
+  cam_name_(cam_name),
+  cam_id_(cam_ID),
+  cam_subsampling_rate_(1),
+  cam_binning_rate_(1),
+  cam_sensor_scaling_rate_(1),
+  color_mode_(IS_CM_MONO8),
+  bits_per_pixel_(8)
+{
   cam_aoi_.s32X = 0;
   cam_aoi_.s32Y = 0;
   cam_aoi_.s32Width = 640;
@@ -280,7 +281,7 @@ INT Driver::setResolution(INT& image_width, INT& image_height,
 }
 
 
-INT Driver::setSubsampling(int& rate, bool reallocate_buffer) {
+INT Driver::setSubsampling(unsigned int& rate, bool reallocate_buffer) {
   if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
 
   INT is_err = IS_SUCCESS;
@@ -346,13 +347,13 @@ INT Driver::setSubsampling(int& rate, bool reallocate_buffer) {
 
   //DEBUG_STREAM("Updated subsampling rate to " << rate << "X for [" << cam_name_ << "]");
 
-  cam_subsampling_rate_ = static_cast<unsigned int>(rate);
+  cam_subsampling_rate_ = rate;
 
   return (reallocate_buffer ? reallocateCamBuffer() : IS_SUCCESS);
 }
 
 
-INT Driver::setBinning(int& rate, bool reallocate_buffer) {
+INT Driver::setBinning(unsigned int& rate, bool reallocate_buffer) {
   if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
 
   INT is_err = IS_SUCCESS;
@@ -1056,7 +1057,7 @@ const char* Driver::processNextFrame(UINT timeout_ms) {
   return cam_buffer_;
 }
 
-
+// DJS: Use exceptions here - pull out the error strings via the exceptions.
 INT Driver::syncCamConfig(string dft_mode_str) {
   INT is_err = IS_SUCCESS;
 

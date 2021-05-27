@@ -64,7 +64,7 @@ int main(int argc, char** argv) {
         std::cout << "Required Version: " << ueye_cam::sdk_required_version() << std::endl;
     }
     if ( camera_id >= 0 ) {
-    	ueye_cam::Driver driver(camera_id);
+    	ueye_cam::Driver driver(camera_id, "camera");
     	int result = driver.connectCam();
     	if ( result != 0 ) {
     		std::cerr << "Could not connect to camera [" << ueye_cam::Driver::err2str(result) << "]" << std::endl;

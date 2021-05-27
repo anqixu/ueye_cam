@@ -51,7 +51,8 @@ namespace ueye_cam {
 ** Interfaces
 *****************************************************************************/
 
-// TODO: an enum library that works with strings would be useful here
+// Enums would be nicer, but that generates too many conversions to and fro
+// the underlying driver types.
 struct ColorMode {
   const static std::string MONO8;
   const static std::string MONO10;
@@ -66,42 +67,44 @@ struct ColorMode {
   const static std::string BGR10u;
   const static std::string BGR12u;
   const static std::string BAYER_RGGB8;
+  const static std::string BAYER_RGGB10;
+  const static std::string BAYER_RGGB12;
+  const static std::string BAYER_RGGB16;
 
   // TODO: Consider adding an isValid(const std::string &color_mode) to check against existing modes
 };
 
-enum SubSamplingRatio {
-  SUB_1X = 1,
-  SUB_2X = 2,
-  SUB_4X = 4,
-  SUB_8X = 8,
-  SUB_16X = 16,
+struct SubSamplingRatio {
+  const static unsigned int SUB_1X = 1;
+  const static unsigned int SUB_2X = 2;
+  const static unsigned int SUB_4X = 4;
+  const static unsigned int SUB_8X = 8;
+  const static unsigned int SUB_16X = 16;
 };
 
-enum BinningRatio {
-  BIN_1X = 1,
-  BIN_2X = 2,
-  BIN_4X = 4,
-  BIN_8X = 8,
-  BIN_16X = 16,
+struct BinningRatio {
+  const static unsigned int BIN_1X = 1;
+  const static unsigned int BIN_2X = 2;
+  const static unsigned int BIN_4X = 4;
+  const static unsigned int BIN_8X = 8;
+  const static unsigned int BIN_16X = 16;
 };
 
-// previously a double, but useful to have as an enum here. Can cast to double if necessary.
-enum SensorScalingRatio {
-  SS_1X = 1,
-  SS_2X = 2,
-  SS_4X = 4,
-  SS_8X = 8,
-  SS_16X = 16,
+struct SensorScalingRatio {
+  const static double SS_1X;
+  const static double SS_2X;
+  const static double SS_4X;
+  const static double SS_8X;
+  const static double SS_16X;
 };
 
-enum GPIOMode {
-  INPUT = 0,
-  OUTPUT_LOW = 1,
-  OUTPUT_HIGH = 2,
-  FLASH = 3,
-  PWM_OUTPUT = 4,
-  TRIGGER = 5
+struct GPIOMode {
+  const static int INPUT = 0;
+  const static int OUTPUT_LOW = 1;
+  const static int OUTPUT_HIGH = 2;
+  const static int FLASH = 3;
+  const static int PWM_OUTPUT = 4;
+  const static int TRIGGER = 5;
 };
 
 // TODO: Consider converting to a richer container of ParameterValue / ParameterDescriptor pairs.
@@ -113,9 +116,9 @@ struct CameraParameters {
   int image_left;                    /**< Left index for camera's area of interest (-1: center) [min:-1, max: 2560-16] */
   int image_top;                     /**< Top index for camera's area of interest (-1: center) [min:-1, max: 1920-4]*/
   std::string color_mode;            /**< Output image color mode [ColorMode constants] */
-  SubSamplingRatio subsampling;      /**< Output image subsampling ratio [SubSamplingRatio enums]*/
-  BinningRatio binning;              /**< Output image binning ratio [BinningRatio enums]*/
-  SensorScalingRatio sensor_scaling; /**< Output image scaling ratio (Internal Image Scaling) [SensorScalingRatio enums]*/
+  unsigned int subsampling;          /**< Output image subsampling ratio [SubSamplingRatio constants]*/
+  unsigned int binning;              /**< Output image binning ratio [BinningRatio enums]*/
+  double sensor_scaling;             /**< Output image scaling ratio (Internal Image Scaling) [SensorScalingRatio enums]*/
   bool auto_gain;                    /**< Auto gain (overruled by auto framerate) */
   int master_gain;                   /**< Master gain percentage [min:0, max:100] */
   int red_gain;                      /**< Red gain percentage [min:0, max:100] */
@@ -137,8 +140,8 @@ struct CameraParameters {
 
   bool ext_trigger_mode;             /**< Toggle between external trigger mode and free-run mode */
   bool trigger_rising_edge;          /**< Toggle between rising edge and falling edge trigger */
-  GPIOMode gpio1;                    /**< Mode for GPIO1 (pin 5) [GPIOMode enums] **/
-  GPIOMode gpio2;                    /**< Mode for GPIO2 (pin 6) [GPIOMode enums] **/
+  int gpio1;                    /**< Mode for GPIO1 (pin 5) [GPIOMode enums] **/
+  int gpio2;                    /**< Mode for GPIO2 (pin 6) [GPIOMode enums] **/
   double pwm_freq;                   /**< PWM output frequency [min:1, max:10000] */
   double pwm_duty_cycle;             /**< PWM output duty cycle [min: 0, max: 1] */
 
@@ -154,9 +157,9 @@ struct CameraParameters {
     image_width(640), image_height(480),
     image_left(-1), image_top(-1),
     color_mode(ColorMode::MONO8),
-    subsampling(SubSamplingRatio::SUB_1X),
-    binning(BinningRatio::BIN_1X),
-    sensor_scaling(SensorScalingRatio::SS_1X),
+    subsampling(SubSamplingRatio::SUB_1X),     // supported by only some UEye cameras
+    binning(BinningRatio::BIN_1X),             // supported by only some UEye cameras
+    sensor_scaling(SensorScalingRatio::SS_1X), // supported by only some UEye cameras
     auto_gain(false),
     master_gain(0),
     red_gain(0),
@@ -186,44 +189,14 @@ struct CameraParameters {
     flip_lr(false)
   {}
 
-  std::string to_str() const {
-    std::ostringstream ostream;
-    ostream << "Camera Parameters\n";
-    ostream << "  Width:\t\t\t" << image_width << "\n";
-    ostream << "  Height:\t\t\t" << image_height << "\n";
-    ostream << "  Left Pos.:\t\t\t" << image_left << "\n";
-    ostream << "  Top Pos.:\t\t\t" << image_top << "\n";
-    ostream << "  Color Mode:\t\t\t" << color_mode << "\n";
-    ostream << "  Subsampling:\t\t\t" << subsampling << "\n";
-    ostream << "  Binning:\t\t\t" << binning << "\n";
-    ostream << "  Sensor Scaling:\t\t" << sensor_scaling << "\n";
-    ostream << "  Auto Gain:\t\t\t" << auto_gain << "\n";
-    ostream << "  Master Gain:\t\t\t" << master_gain << "\n";
-    ostream << "  Red Gain:\t\t\t" << red_gain << "\n";
-    ostream << "  Green Gain:\t\t\t" << green_gain << "\n";
-    ostream << "  Blue Gain:\t\t\t" << blue_gain << "\n";
-    ostream << "  Gain Boost:\t\t\t" << gain_boost << "\n";
-    ostream << "  Software Gamma:\t\t" << software_gamma << "\n";
-    ostream << "  Auto Exposure:\t\t" << auto_exposure << "\n";
-    ostream << "  Auto Exposure Reference:\t" << auto_exposure_reference << "\n";
-    ostream << "  Exposure (ms):\t\t" << exposure << "\n";
-    ostream << "  Auto White Balance:\t\t" << auto_white_balance << "\n";
-    ostream << "  WB Red Offset:\t\t" << white_balance_red_offset << "\n";
-    ostream << "  WB Blue Offset:\t\t" << white_balance_blue_offset << "\n";
-    ostream << "  Flash Delay (us):\t\t" << flash_delay << "\n";
-    ostream << "  Flash Duration (us):\t\t" << flash_duration << "\n";
-    ostream << "  Ext Trigger Mode:\t\t" << ext_trigger_mode << "\n";
-    ostream << "  Trigger Rising Edge:\t\t" << trigger_rising_edge << "\n";
-    ostream << "  Auto Frame Rate:\t\t" << auto_frame_rate << "\n";
-    ostream << "  Frame Rate (Hz):\t\t" << frame_rate << "\n";
-    ostream << "  Output Rate (Hz):\t\t" << output_rate << "\n";
-    ostream << "  Pixel Clock (MHz):\t\t" << pixel_clock << "\n";
-    ostream << "  GPIO1 Mode:\t\t\t" << gpio1 << "\n";
-    ostream << "  GPIO2 Mode:\t\t\t" << gpio1 << "\n";
-    ostream << "  Mirror Image Upside Down:\t" << flip_upd << "\n";
-    ostream << "  Mirror Image Left Right:\t" << flip_lr << "\n";
-    return ostream.str();
-  }
+  /**
+   * @brief Validate parameters, fallback if constraints are violated.
+   *
+   * Raises std::invalid_argument if one or more parameters were invalid. The string message
+   * contains a list of the violations and the fallbacks.
+   **/
+  void validate(const CameraParameters& fallbacks);
+  std::string to_str() const;  /**< Simple debugging convenience. */
 };
 
 } // namespace ueye_cam

@@ -38,7 +38,7 @@
 ** Includes
 *****************************************************************************/
 
-#include <ueye_cam/camera_driver.hpp>
+#include <memory>
 #include <thread>
 
 // #include <boost/thread/mutex.hpp>
@@ -49,6 +49,7 @@
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/srv/set_camera_info.hpp>
 
+#include "camera_driver.hpp"
 #include "camera_parameters.hpp"
 #include "node_parameters.hpp"
 
@@ -59,25 +60,12 @@
 namespace ueye_cam {
 
 /*****************************************************************************
-** Typedefs
-*****************************************************************************/
-
-// typedef dynamic_reconfigure::Server<ueye_cam::UEyeCamConfig> ReconfigureServer;
-
-/*****************************************************************************
 ** Node Interface
 *****************************************************************************/
 
 class Node final : public rclcpp::Node, public Driver
 {
 public:
-  /********************************************
-   * Static Variables
-   *******************************************/
-  constexpr static unsigned int RECONFIGURE_RUNNING = 0;
-  constexpr static unsigned int RECONFIGURE_STOP = 1;
-  constexpr static unsigned int RECONFIGURE_CLOSE = 3;
-
   /********************************************
    * Constructors & Destructors
    *******************************************/
@@ -88,131 +76,100 @@ public:
   Node(const Node & c) = delete;
   Node & operator=(const Node & c) = delete;
 
-  /********************************************
-   * Config & Init
-   *******************************************/
-  /**
-   * Initializes ROS environment, loads static ROS parameters, initializes UEye camera,
-   * and starts live capturing / frame grabbing thread.
-   */
-  void onInit();
-  // /**
-  //  * Handles callbacks from dynamic_reconfigure.
-  //  */
-  // void configCallback(ueye_cam::UEyeCamConfig& config, uint32_t level);
-
 private:
   /********************************************
-   * Private Methods
+   * Convenience Typedefs
    *******************************************/
-//  /**
-//   * Calls UEyeCamDriver::syncCamConfig(), then updates ROS camera info
-//   * and ROS image settings.
-//   */
-//  virtual INT syncCamConfig(std::string dft_mode_str = "mono8");
-//
-//  /**
-//   * Reads parameter values from currently selected camera.
-//   */
-//  INT queryCamParams();
+  typedef std::shared_ptr<sensor_msgs::srv::SetCameraInfo::Request> SetCameraInfoRequestPtr;
+  typedef std::shared_ptr<sensor_msgs::srv::SetCameraInfo::Response> SetCameraInfoResponsePtr;
+  typedef rcl_interfaces::msg::ParameterEvent::SharedPtr ParameterEventPtr;
+
+  /********************************************
+   * Constants
+   *******************************************/
+  const static std::map<int, std::string> ENCODING_DICTIONARY;  /**< Maps UEye to sensor_msgs encoding constants. **/
+
+  /********************************************
+   * Parameters
+   *******************************************/
+  void declareParameters(); /**< Declare parameters, types, descriptions. **/
+  void updateParameters(); /**< Manually update parameters with the latest values. **/
+  void reflectParameters(); /**< Reflect a subset of parameters back to the driver. **/
+  void setupParameterEventHandling(); /**< Setup client/callback for handling dynamically reconfigurable parameters. **/
+  bool onParameterEvent(const ParameterEventPtr event); /**< Dynamic parameter callback **/
+
+  CameraParameters camera_parameters_;
+  NodeParameters node_parameters_;
+  std::shared_ptr<rclcpp::SyncParametersClient> parameters_client_;
+  rclcpp::Subscription<rcl_interfaces::msg::ParameterEvent>::SharedPtr parameter_events_subscriber_;
+  bool parameter_sync_requested_;
+  std::recursive_mutex parameter_sync_mutex_;  // DJS: previously ros_cfg_mutex_, a boost recursive mutex
+
+  /********************************************
+   * Non-Parameter Initialisation
+   *******************************************/
+  void setupCommunications();       /**< Setup ROS2 publishers, subscribers and services. **/
+  void loadIntrinsicsFile();        /**< Loads the camera's intrinsic parameters. */
+  bool saveIntrinsicsFile();        /**< Saves the camera's intrinsic parameters. */
+  void setCamInfo(const SetCameraInfoRequestPtr request, SetCameraInfoResponsePtr response); /**< Callback for updating intrinsic parameters over a service and saves to file (via saveIntrinsicsFile()). **/
+
+  image_transport::CameraPublisher ros_cam_pub_;
+  sensor_msgs::msg::Image ros_image_;
+  sensor_msgs::msg::CameraInfo ros_cam_info_;
+  rclcpp::Service<sensor_msgs::srv::SetCameraInfo>::SharedPtr set_cam_info_srv_;
+
+  /********************************************
+   * Camera Connection
+   *******************************************/
+  INT connectCam(); /**< Initializes the camera handle, loads UEye ini, refreshes params and starts the frame grabber thread. */
+  INT disconnectCam(); /**< Stops the frame grabber thread, closes the camera handle and releases local variables. */
+  INT syncToCamera();    /**< Configures the camera from the current parameterisation. **/
+  INT syncFromCamera();  /**< Retrieves various camera settings and updates the current parameterisation. */
+
+  /********************************************
+   * Frame Grabbing
+   *******************************************/
+  void frameGrabLoop();
+  void startFrameGrabber();
+  void stopFrameGrabber();
+  bool fillMsgData(sensor_msgs::msg::Image& img) const; /**< Transfers the current frame into sensor_msgs::Image */
+
+  std::thread frame_grab_thread_;
+  bool frame_grab_alive_;
+  std::mutex output_rate_mutex_;  // DJS: previously a boost mutex, std will be fine?
+
 //
 //  /**
 //   * Loads, validates, and updates static ROS parameters.
 //   */
 //  INT parseROSParams(ros::NodeHandle& local_nh);
-//
-//  /**
-//   * Initializes the camera handle, loads UEye INI configuration, refreshes
-//   * parameters from camera, loads and sets static ROS parameters, and starts
-//   * the frame grabber thread.
-//   */
-//  virtual INT connectCam();
-//
-//  /**
-//   * Stops the frame grabber thread, closes the camera handle,
-//   * and releases all local variables.
-//   */
-//  virtual INT disconnectCam();
 
-  /**
-   * Loads the camera's intrinsic parameters from camIntrFilename.
-   */
-  void loadIntrinsicsFile();
-
-
-  /**
-   * Saves the camera's intrinsic parameters to camIntrFilename.
-   */
-  bool saveIntrinsicsFile();
-
-  /**
-   * (ROS Service) Updates the camera's intrinsic parameters over the ROS topic,
-   * and saves the parameters to a flatfile.
-   */
-  void setCamInfo(
-      const std::shared_ptr<sensor_msgs::srv::SetCameraInfo::Request> request,
-      std::shared_ptr<sensor_msgs::srv::SetCameraInfo::Response> response
-  );
-//
-//  /**
-//   * Main ROS interface "spin" loop.
-//   */
-//  void frameGrabLoop();
-//  void startFrameGrabber();
-//  void stopFrameGrabber();
-//
-//  const static std::map<INT, std::string> ENCODING_DICTIONARY;
-//  /**
-//   * Transfers the current frame content into given sensor_msgs::Image,
-//   * therefore writes the fields width, height, encoding, step and
-//   * data of img.
-//   */
-//  bool fillMsgData(sensor_msgs::msg::Image& img) const;
-//
-//  /**
-//   * Returns image's timestamp or current wall time if driver call fails.
-//   */
-//  rclcpp::Time getImageTimestamp();
-//
-//  /**
-//   * Returns image's timestamp based on device's internal clock or current wall time if driver call fails.
-//   */
-//  rclcpp::Time getImageTickTimestamp();
-
-  /**
-   * @brief Timeout handler.
-   *
-   * Overloaded callback to execute when the underlying driver detects a timeout.
-   * This is used only for debugging purposes.
-   */
-  void handleTimeout();
 
   /********************************************
-   * Parameters
+   * TimeStamping
    *******************************************/
-  CameraParameters camera_parameters_;
-  NodeParameters node_parameters_;
+  rclcpp::Time getImageTimestamp(); /**< Returns the image's timestamp, falls back to ros time if the driver call fails. */
+  rclcpp::Time getImageTickTimestamp(); /**< Fetches from the device's internal clock, falls back to ros time if the driver call fails. */
 
-  /********************************************
-   * Variables
-   *******************************************/
-  std::thread frame_grab_thread_;
-  bool frame_grab_alive_;
-  // ReconfigureServer* ros_cfg_;
-  // boost::recursive_mutex ros_cfg_mutex_;
-  // bool cfg_sync_requested_;
-  image_transport::CameraPublisher ros_cam_pub_;
-  sensor_msgs::msg::Image ros_image_;
-  sensor_msgs::msg::CameraInfo ros_cam_info_;
-  unsigned int ros_frame_count_;
-  unsigned long long int timeout_count_;
-  rclcpp::Service<sensor_msgs::srv::SetCameraInfo>::SharedPtr set_cam_info_srv_;
   rclcpp::Time init_ros_time_; // for processing frames
   uint64_t init_clock_tick_;
 
+  /********************************************
+   * Debugging
+   *******************************************/
+  INT queryCamera();  /**< Reads parameter values from currently selected camera. */
+  void printConfiguration() const;  /**< Emit the current configuration on loggers (convenience method). **/
+  void handleTimeout();  /**< Debug handle called when the underlying driver detects a timeout. **/
+
+  unsigned long long int timeout_count_;
+
+  /********************************************
+   * Additional Variables
+   *******************************************/
+  unsigned int ros_frame_count_;
+
   rclcpp::Time init_publish_time_; // for throttling frames from being published (see cfg.output_rate)
   uint64_t prev_output_frame_idx_; // see init_publish_time_
-  // boost::mutex output_rate_mutex_;
 
 };
 

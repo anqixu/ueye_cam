@@ -1,17 +1,13 @@
 ueye_cam:
   ros__parameters:
-    # Camera agnostic parameters
+    # For default values, refer to:
+    #  - ueye_cam/camera_parameters.hpp
+    #  - ueye_cam/node_parameters.hpp
     camera_name: froody
-    frame_name: image_raw
-#    acceleration_limiter: false
-#    battery_capacity: 16.5
-#    battery_low: 14.0
-#    battery_dangerous: 13.2
-#    device_port: /dev/ttyUSB0
-#    cmd_vel_timeout_sec: 0.6
-#    odom_frame: odom
-#    base_frame: base
-#    publish_tf: true
-#    use_imu_heading: true
-#    wheel_left_joint_name: wheel_left_joint
- #   wheel_right_joint_name: wheel_right_joint
+    frame_name: froody
+    camera_id: 1
+    color_mode: rgb8
+    auto_gain: true
+    green_gain: 1
+    blue_gain: 15
+    auto_white_balance: true

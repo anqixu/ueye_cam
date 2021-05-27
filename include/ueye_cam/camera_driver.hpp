@@ -71,11 +71,15 @@ class Driver {
 public:
   constexpr static int ANY_CAMERA = 0;
 
+  /**
+   * Default constructor
+   */
+  Driver() : Driver(ANY_CAMERA, "camera") {}
 
   /**
    * Initializes member variables.
    */
-  Driver(int cam_ID = ANY_CAMERA, std::string cam_name = "camera");
+  Driver(int cam_ID, std::string cam_name);
 
   /**
    * Terminates UEye camera interface.
@@ -154,7 +158,7 @@ public:
    *
    * \return IS_SUCCESS if successful, error flag otherwise (see err2str).
    */
-  INT setSubsampling(int& rate, bool reallocate_buffer = true);
+  INT setSubsampling(unsigned int& rate, bool reallocate_buffer = true);
 
   /**
    * Updates current camera handle's binning rate.
@@ -166,7 +170,7 @@ public:
    *
    * \return IS_SUCCESS if successful, error flag otherwise (see err2str).
    */
-  INT setBinning(int& rate, bool reallocate_buffer = true);
+  INT setBinning(unsigned int& rate, bool reallocate_buffer = true);
 
   /**
    * Updates current camera handle's internal image scaling rate.
@@ -413,7 +417,7 @@ public:
   static bool isSupportedColorMode(INT mode);
 
   /**
-   * translates ROS name to UEye color mode flag or the other way round.
+   * translates string name to UEye color mode flag or the other way round.
    */
   static INT name2colormode(const std::string& name);
   const static std::string colormode2name(INT mode);

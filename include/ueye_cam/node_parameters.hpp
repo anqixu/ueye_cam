@@ -64,9 +64,9 @@ struct NodeParameters {
   std::string camera_intrinsics_filename;
   std::string camera_parameters_filename;
 
-  NodeParameters(const int& camera_id=Driver::ANY_CAMERA, const std::string& camera_name="camera"):
-    camera_name(camera_name),
-    camera_id(camera_id),
+  NodeParameters():
+    camera_name("camera"),
+    camera_id(Driver::ANY_CAMERA),
     frame_name("camera"),
     topic_name("image_raw"),
     camera_intrinsics_filename(""),
@@ -76,12 +76,12 @@ struct NodeParameters {
   std::string to_str() const {
     std::ostringstream ostream;
     ostream << "Node Parameters\n";
-    ostream << "Camera Name:\t\t\t" << camera_name << "\n";
-    ostream << "Camera Id:\t\t\t" << camera_id << "\n";
-    ostream << "Frame Name:\t\t\t" << frame_name << "\n";
-    ostream << "Topic Name:\t\t\t" << topic_name << "\n";
-    ostream << "Intrinsics Filename:\t\t" << camera_intrinsics_filename << "\n";
-    ostream << "Parameters Filename:\t\t" << camera_parameters_filename << "\n";
+    ostream << "  Camera Name:\t\t\t" << camera_name << "\n";
+    ostream << "  Camera Id:\t\t\t" << camera_id << "\n";
+    ostream << "  Frame Name:\t\t\t" << frame_name << "\n";
+    ostream << "  Topic Name:\t\t\t" << topic_name << "\n";
+    ostream << "  Intrinsics Filename:\t\t" << camera_intrinsics_filename << "\n";
+    ostream << "  Parameters Filename:\t\t" << camera_parameters_filename << "\n";
     return ostream.str();
   }
 };
