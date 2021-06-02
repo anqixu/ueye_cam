@@ -122,7 +122,6 @@ private:
   INT connectCam(); /**< Initializes the camera handle, loads UEye ini, refreshes params and starts the frame grabber thread. */
   INT disconnectCam(); /**< Stops the frame grabber thread, closes the camera handle and releases local variables. */
   INT syncToCamera();    /**< Configures the camera from the current parameterisation. **/
-  INT syncFromCamera();  /**< Retrieves various camera settings and updates the current parameterisation. */
 
   /********************************************
    * Frame Grabbing

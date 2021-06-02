@@ -55,7 +55,6 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
 #include <ueye_cam/camera_driver.hpp>
-//#include <sensor_msgs/fill_image.hpp>
 #include <sensor_msgs/image_encodings.hpp>
 
 #include "../../include/ueye_cam/node.hpp"
@@ -107,7 +106,6 @@ Node::Node(const rclcpp::NodeOptions & options):
     set_cam_info_srv_(),
     frame_grab_alive_(false),
     output_rate_mutex_(),
-    // ros_cfg_(nullptr),
     init_ros_time_(0, 0, RCL_SYSTEM_TIME),
     init_clock_tick_(0),
     timeout_count_(0),
@@ -181,13 +179,9 @@ INT Node::connectCam() {
         ".ini";
   }
   if ((is_err = loadCamConfig(node_parameters_.camera_parameters_filename)) != IS_SUCCESS) return is_err;
+
+  // Sync parameters with the camera, update the driver state, buffers
   if ((is_err = syncToCamera()) != IS_SUCCESS) return is_err;
-  if ((is_err = syncFromCamera()) != IS_SUCCESS) return is_err;
-
-  // TODO: Dynamic parameter handling.
-
-  // Parse and load ROS camera settings
-//  if ((is_err = parseROSParams(getPrivateNodeHandle())) != IS_SUCCESS) return is_err;
 
   return IS_SUCCESS;
 }
@@ -205,7 +199,10 @@ INT Node::disconnectCam() {
 }
 
 INT Node::syncToCamera() {
+  // Return errors if updates are critical, a noop otherwise
   INT is_err;
+  #define noop (void)0
+
   // Configure color mode, resolution, binning, scaling and subsampling rate
   if ((is_err = setColorMode(camera_parameters_.color_mode, false)) != IS_SUCCESS) return is_err;
   if ((is_err = setSubsampling(camera_parameters_.subsampling, false)) != IS_SUCCESS) return is_err;
@@ -218,8 +215,6 @@ INT Node::syncToCamera() {
   // Configure camera sensor parameters
   // NOTE: failing to configure certain parameters may or may not cause camera to fail;
   //       cuurently their failures are treated as non-critical
-  //#define noop return is_err
-  #define noop (void)0
   if ((is_err = setGain(camera_parameters_.auto_gain, camera_parameters_.master_gain,
       camera_parameters_.red_gain, camera_parameters_.green_gain,
       camera_parameters_.blue_gain, camera_parameters_.gain_boost)) != IS_SUCCESS) noop;
@@ -235,43 +230,10 @@ INT Node::syncToCamera() {
   if ((is_err = setGpioMode(2, camera_parameters_.gpio2, camera_parameters_.pwm_freq, camera_parameters_.pwm_duty_cycle)) != IS_SUCCESS) noop;
   if ((is_err = setMirrorUpsideDown(camera_parameters_.flip_upd)) != IS_SUCCESS) noop;
   if ((is_err = setMirrorLeftRight(camera_parameters_.flip_lr)) != IS_SUCCESS) noop;
+
+  // Finally, re-initialise driver state and buffers
+  if ((is_err = Driver::syncCamConfig(ColorMode::MONO8)) != IS_SUCCESS) return is_err;
   #undef noop
-  return is_err;
-}
-
-INT Node::syncFromCamera() {
-
-  // Note: This retrieves the current camera state and resyncs it with the parameters.
-  //      It also has a spurious one line call to reallocateFrameBuffer() in Driver::syncCamConfig
-  // DJS: This perhaps should not be necessary? To make life simple and
-  //      predictable, synchronisation should only be from ros parameters to
-  //      camera, not the other way around (i.e. not a bi-directional sync).
-  INT is_err;
-
-  if ((is_err = Driver::syncCamConfig()) != IS_SUCCESS) return is_err;
-
-  // Update ROS color mode string
-  camera_parameters_.color_mode = colormode2name(is_SetColorMode(cam_handle_, IS_GET_COLOR_MODE));
-  if (camera_parameters_.color_mode.empty()) {
-    RCLCPP_ERROR(
-      this->get_logger(),
-      "Retrieved an unknown color mode for [%s], resetting to[%s]: \n(THIS IS A CODING ERROR, PLEASE CONTACT PACKAGE AUTHOR)",
-      node_parameters_.camera_name,
-      ColorMode::MONO8
-    );
-    camera_parameters_.color_mode = ColorMode::MONO8;
-    setColorMode(camera_parameters_.color_mode);
-  }
-
-  // Copy internal settings to ROS dynamic parameters
-  camera_parameters_.image_width = cam_aoi_.s32Width;   // Technically, these are width and height for the
-  camera_parameters_.image_height = cam_aoi_.s32Height; // sensor's Area of Interest, and not of the image
-  if (camera_parameters_.image_left >= 0) camera_parameters_.image_left = cam_aoi_.s32X; // TODO: 1 ideally want to ensure that aoi top-left does correspond to centering
-  if (camera_parameters_.image_top >= 0) camera_parameters_.image_top = cam_aoi_.s32Y;
-  //parameter_sync_requested_ = true; // WARNING: assume that dyncfg client may want to override current settings
-
-  // These updated parameters need to be reflected back to camera image and info messages.
-  //   height, width - done when publishing, see fillImgData()
   return is_err;
 }
 

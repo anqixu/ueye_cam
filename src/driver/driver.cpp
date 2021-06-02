@@ -1128,6 +1128,15 @@ INT Driver::syncCamConfig(string dft_mode_str) {
       camera_parameters_.binning = 1; break;
   }
 
+  // Copy internal settings to parameters
+  // DJS: This perhaps should not be necessary. To be predictable and consistent,
+  //      parameterisation should flow in one direction only. If a user configures
+  //      the image width, it shouldn't cause surprise by changing internally.
+  camera_parameters_.image_width = cam_aoi_.s32Width;   // Technically, these are width and height for the
+  camera_parameters_.image_height = cam_aoi_.s32Height; // sensor's Area of Interest, and not of the image
+  if (camera_parameters_.image_left >= 0) camera_parameters_.image_left = cam_aoi_.s32X; // TODO: 1 ideally want to ensure that aoi top-left does correspond to centering
+  if (camera_parameters_.image_top >= 0) camera_parameters_.image_top = cam_aoi_.s32Y;
+
   // Report synchronized settings
   /*
   DEBUG_STREAM("Synchronized configuration of [" << cam_name_ <<
