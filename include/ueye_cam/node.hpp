@@ -50,7 +50,6 @@
 #include <sensor_msgs/srv/set_camera_info.hpp>
 
 #include "camera_driver.hpp"
-#include "camera_parameters.hpp"
 #include "node_parameters.hpp"
 
 /*****************************************************************************
@@ -98,7 +97,6 @@ private:
   void setupParameterEventHandling(); /**< Setup client/callback for handling dynamically reconfigurable parameters. **/
   bool onParameterEvent(const ParameterEventPtr event); /**< Dynamic parameter callback **/
 
-  CameraParameters camera_parameters_;
   NodeParameters node_parameters_;
   std::shared_ptr<rclcpp::SyncParametersClient> parameters_client_;
   rclcpp::Subscription<rcl_interfaces::msg::ParameterEvent>::SharedPtr parameter_events_subscriber_;

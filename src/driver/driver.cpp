@@ -48,16 +48,14 @@ namespace ueye_cam {
 // Note that all of these default settings will be overwritten
 // by syncCamConfig() during connectCam()
 Driver::Driver(int cam_ID, string cam_name):
+  cam_name_(cam_name),
+  camera_parameters_(),
   cam_handle_(HIDS(0)),
   cam_buffer_(nullptr),
   cam_buffer_id_(0),
   cam_buffer_pitch_(0),
   cam_buffer_size_(0),
-  cam_name_(cam_name),
   cam_id_(cam_ID),
-  cam_subsampling_rate_(1),
-  cam_binning_rate_(1),
-  cam_sensor_scaling_rate_(1),
   color_mode_(IS_CM_MONO8),
   bits_per_pixel_(8)
 {
@@ -258,7 +256,7 @@ INT Driver::setResolution(INT& image_width, INT& image_height,
   cam_aoi_.s32Width = image_width;
   cam_aoi_.s32Height = image_height;
 
-  const double s = cam_binning_rate_*cam_subsampling_rate_*cam_sensor_scaling_rate_;
+  const double s = camera_parameters_.binning*camera_parameters_.subsampling*camera_parameters_.sensor_scaling;
   cam_aoi_.s32X /= s;
   cam_aoi_.s32Y /= s;
   cam_aoi_.s32Width /= s;
@@ -347,7 +345,7 @@ INT Driver::setSubsampling(unsigned int& rate, bool reallocate_buffer) {
 
   //DEBUG_STREAM("Updated subsampling rate to " << rate << "X for [" << cam_name_ << "]");
 
-  cam_subsampling_rate_ = rate;
+  camera_parameters_.subsampling = rate;
 
   return (reallocate_buffer ? reallocateCamBuffer() : IS_SUCCESS);
 }
@@ -419,7 +417,7 @@ INT Driver::setBinning(unsigned int& rate, bool reallocate_buffer) {
 
   //DEBUG_STREAM("Updated binning rate to " << rate << "X for [" << cam_name_ << "]");
 
-  cam_binning_rate_ = static_cast<unsigned int>(rate);
+  camera_parameters_.binning = static_cast<unsigned int>(rate);
 
   return (reallocate_buffer ? reallocateCamBuffer() : IS_SUCCESS);
 }
@@ -438,13 +436,13 @@ INT Driver::setSensorScaling(double& rate, bool reallocate_buffer) {
   if (is_err == IS_NOT_SUPPORTED) {
     //WARN_STREAM("[" << cam_name_ << "] does not support internal image scaling");
     rate = 1.0;
-    cam_sensor_scaling_rate_ = 1.0;
+    camera_parameters_.sensor_scaling = 1.0;
     return IS_SUCCESS;
   } else if (is_err != IS_SUCCESS) {
     //ERROR_STREAM("Failed to obtain supported internal image scaling information for [" <<
     //  cam_name_ << "] (" << err2str(is_err) << ")");
     rate = 1.0;
-    cam_sensor_scaling_rate_ = 1.0;
+    camera_parameters_.sensor_scaling = 1.0;
     return is_err;
   } else {
     if (rate < sensorScalerInfo.dblMinFactor || rate > sensorScalerInfo.dblMaxFactor) {
@@ -470,7 +468,7 @@ INT Driver::setSensorScaling(double& rate, bool reallocate_buffer) {
 
   //DEBUG_STREAM("Updated internal image scaling rate to " << rate << "X for [" << cam_name_ << "]");
 
-  cam_sensor_scaling_rate_ = rate;
+  camera_parameters_.sensor_scaling = rate;
 
   return (reallocate_buffer ? reallocateCamBuffer() : IS_SUCCESS);
 }
@@ -1083,23 +1081,23 @@ INT Driver::syncCamConfig(string dft_mode_str) {
   SENSORSCALERINFO sensorScalerInfo;
   is_err = is_GetSensorScalerInfo(cam_handle_, &sensorScalerInfo, sizeof(sensorScalerInfo));
   if (is_err == IS_NOT_SUPPORTED) {
-    cam_sensor_scaling_rate_ = 1.0;
+    camera_parameters_.sensor_scaling = 1.0;
   } else if (is_err != IS_SUCCESS) {
     //ERROR_STREAM("Could not obtain supported internal image scaling information for [" <<
     //  cam_name_ << "] (" << err2str(is_err) << ")");
     return is_err;
   } else {
-    cam_sensor_scaling_rate_ = sensorScalerInfo.dblCurrFactor;
+    camera_parameters_.sensor_scaling = sensorScalerInfo.dblCurrFactor;
   }
 
   // Synchronize subsampling rate setting
   const INT currSubsamplingRate = is_SetSubSampling(cam_handle_, IS_GET_SUBSAMPLING);
   switch (currSubsamplingRate) {
-    case (IS_SUBSAMPLING_DISABLE): cam_subsampling_rate_ = 1; break;
-    case (IS_SUBSAMPLING_2X): cam_subsampling_rate_ = 2; break;
-    case (IS_SUBSAMPLING_4X): cam_subsampling_rate_ = 4; break;
-    case (IS_SUBSAMPLING_8X): cam_subsampling_rate_ = 8; break;
-    case (IS_SUBSAMPLING_16X): cam_subsampling_rate_ = 16; break;
+    case (IS_SUBSAMPLING_DISABLE): camera_parameters_.subsampling = 1; break;
+    case (IS_SUBSAMPLING_2X): camera_parameters_.subsampling = 2; break;
+    case (IS_SUBSAMPLING_4X): camera_parameters_.subsampling = 4; break;
+    case (IS_SUBSAMPLING_8X): camera_parameters_.subsampling = 8; break;
+    case (IS_SUBSAMPLING_16X): camera_parameters_.subsampling = 16; break;
     default:
       //WARN_STREAM("Current sampling rate (IDS setting: " << currSubsamplingRate
       //    << ") for [" << cam_name_ << "] is not supported by this wrapper; resetting to 1X");
@@ -1108,17 +1106,17 @@ INT Driver::syncCamConfig(string dft_mode_str) {
       //      << "] to 1X (" << err2str(is_err) << ")");
         return is_err;
       }
-      cam_subsampling_rate_ = 1; break;
+      camera_parameters_.subsampling = 1; break;
   }
 
   // Synchronize binning rate setting
   const INT currBinningRate = is_SetBinning(cam_handle_, IS_GET_BINNING);
   switch (currBinningRate) {
-    case (IS_BINNING_DISABLE): cam_binning_rate_ = 1; break;
-    case (IS_BINNING_2X): cam_binning_rate_ = 2; break;
-    case (IS_BINNING_4X): cam_binning_rate_ = 4; break;
-    case (IS_BINNING_8X): cam_binning_rate_ = 8; break;
-    case (IS_BINNING_16X): cam_binning_rate_ = 16; break;
+    case (IS_BINNING_DISABLE): camera_parameters_.binning = 1; break;
+    case (IS_BINNING_2X): camera_parameters_.binning = 2; break;
+    case (IS_BINNING_4X): camera_parameters_.binning = 4; break;
+    case (IS_BINNING_8X): camera_parameters_.binning = 8; break;
+    case (IS_BINNING_16X): camera_parameters_.binning = 16; break;
     default:
       //WARN_STREAM("Current binning rate (IDS setting: " << currBinningRate
       //    << ") for [" << cam_name_ << "] is not supported by this wrapper; resetting to 1X");
@@ -1127,7 +1125,7 @@ INT Driver::syncCamConfig(string dft_mode_str) {
       //      << "] to 1X (" << err2str(is_err) << ")");
         return is_err;
       }
-      cam_binning_rate_ = 1; break;
+      camera_parameters_.binning = 1; break;
   }
 
   // Report synchronized settings
@@ -1140,9 +1138,9 @@ INT Driver::syncCamConfig(string dft_mode_str) {
     "\n  AOI top-left Y: " << cam_aoi_.s32Y <<
     "\n  IDS color mode: " << colormode2str(color_mode_) <<
     "\n  bits per pixel: " << bits_per_pixel_ <<
-    "\n  sensor scaling rate: " << cam_sensor_scaling_rate_ <<
-    "\n  subsampling rate: " << cam_subsampling_rate_ <<
-    "\n  binning rate: " << cam_binning_rate_);
+    "\n  sensor scaling rate: " << camera_parameters_.sensor_scaling <<
+    "\n  subsampling rate: " << camera_parameters_.subsampling <<
+    "\n  binning rate: " << camera_parameters_.binning);
   */
 
   // Force (re-)allocate internal frame buffer
@@ -1186,7 +1184,7 @@ INT Driver::reallocateCamBuffer() {
   }
 
   // Synchronize internal settings for buffer step size and overall buffer size
-  // NOTE: assume that sensor_scaling_rate, subsampling_rate, and cam_binning_rate_
+  // NOTE: assume that sensor_scaling_rate, subsampling_rate, and camera_parameters_.binning
   //       have all been previously validated and synchronized by syncCamConfig()
   if ((is_err = is_GetImageMemPitch(cam_handle_, &cam_buffer_pitch_)) != IS_SUCCESS) {
     //ERROR_STREAM("Failed to query buffer step size / pitch / stride for [" <<

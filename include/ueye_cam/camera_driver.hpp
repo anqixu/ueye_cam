@@ -40,6 +40,8 @@
 #include <thread>
 #include <functional>
 #include <map>
+
+#include "camera_parameters.hpp"
 #include "logging_macros.hpp"
 
 
@@ -477,18 +479,16 @@ protected:
 
   const static std::map<std::string, INT> COLOR_DICTIONARY;
 
+  std::string cam_name_;
+  CameraParameters camera_parameters_;
   HIDS cam_handle_;
   SENSORINFO cam_sensor_info_;
   char* cam_buffer_;
   int cam_buffer_id_;
   INT cam_buffer_pitch_;
   unsigned int cam_buffer_size_;
-  std::string cam_name_;
   int cam_id_;
   IS_RECT cam_aoi_;
-  unsigned int cam_subsampling_rate_;
-  unsigned int cam_binning_rate_;
-  double cam_sensor_scaling_rate_;
   INT color_mode_;
   INT bits_per_pixel_;
 };

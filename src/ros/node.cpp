@@ -96,7 +96,6 @@ const std::map<int, std::string> Node::ENCODING_DICTIONARY = {
 
 Node::Node(const rclcpp::NodeOptions & options):
     rclcpp::Node("ueye_cam", options),
-    camera_parameters_(),
     node_parameters_(),
     parameters_client_(nullptr),
     parameter_events_subscriber_(nullptr),
@@ -269,14 +268,10 @@ INT Node::syncFromCamera() {
   camera_parameters_.image_height = cam_aoi_.s32Height; // sensor's Area of Interest, and not of the image
   if (camera_parameters_.image_left >= 0) camera_parameters_.image_left = cam_aoi_.s32X; // TODO: 1 ideally want to ensure that aoi top-left does correspond to centering
   if (camera_parameters_.image_top >= 0) camera_parameters_.image_top = cam_aoi_.s32Y;
-  camera_parameters_.subsampling = cam_subsampling_rate_;
-  camera_parameters_.binning = cam_binning_rate_;
-  camera_parameters_.sensor_scaling = cam_sensor_scaling_rate_;
   //parameter_sync_requested_ = true; // WARNING: assume that dyncfg client may want to override current settings
 
   // These updated parameters need to be reflected back to camera image and info messages.
   //   height, width - done when publishing, see fillImgData()
-  //   subsampling, binning, sensor scaling - ??? (DJS)
   return is_err;
 }
 
@@ -454,8 +449,12 @@ void Node::frameGrabLoop() {
         output_rate_mutex_.unlock();
         if (throttle_curr_frame) continue;
 
-        cam_info_msg_ptr->width = static_cast<unsigned int>(camera_parameters_.image_width / cam_sensor_scaling_rate_ / cam_binning_rate_ / cam_subsampling_rate_);
-        cam_info_msg_ptr->height = static_cast<unsigned int>(camera_parameters_.image_height / cam_sensor_scaling_rate_ / cam_binning_rate_ / cam_subsampling_rate_);
+        cam_info_msg_ptr->width = static_cast<unsigned int>(
+            camera_parameters_.image_width / camera_parameters_.sensor_scaling / camera_parameters_.binning / camera_parameters_.subsampling
+        );
+        cam_info_msg_ptr->height = static_cast<unsigned int>(
+            camera_parameters_.image_height / camera_parameters_.sensor_scaling / camera_parameters_.binning / camera_parameters_.subsampling
+        );
 
         // Copy pixel content from internal frame buffer to ROS image
         if (!fillMsgData(*img_msg_ptr)) continue;
@@ -660,9 +659,6 @@ void Node::reflectParameters() {
   // Do not forget to call this whenever parameters are updated!
   // TODO(DJS): Can we get the driver to use the camera_parameters struct directly? Need to make sure
   //            it can play nicely with dynamic parameters and callbacks in the ros wrapper (need mutexes)
-  cam_subsampling_rate_ = camera_parameters_.subsampling;
-  cam_binning_rate_ = camera_parameters_.binning;
-  cam_sensor_scaling_rate_ = camera_parameters_.sensor_scaling;
   cam_name_ = node_parameters_.camera_name;
   cam_id_ = node_parameters_.camera_id;
 
