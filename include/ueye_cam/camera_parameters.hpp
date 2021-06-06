@@ -38,6 +38,7 @@
 ** Includes
 *****************************************************************************/
 
+#include <set>
 #include <sstream>
 #include <string>
 
@@ -107,9 +108,6 @@ struct GPIOMode {
   const static int TRIGGER = 5;
 };
 
-// TODO: Consider converting to a richer container of ParameterValue / ParameterDescriptor pairs.
-//       With convenience methods.
-//       This will programmatically embed descriptions and permitted ranges.
 struct CameraParameters {
   int image_width;                   /**< Width of camera's area of interest (prior to subsampling, binning, or sensor scaling) [min:16, max:4912] */
   int image_height;                  /**< Height of camera's area of interest (prior to subsampling, binning, or sensor scaling) [min:4, max:3684] */
@@ -140,8 +138,8 @@ struct CameraParameters {
 
   bool ext_trigger_mode;             /**< Toggle between external trigger mode and free-run mode */
   bool trigger_rising_edge;          /**< Toggle between rising edge and falling edge trigger */
-  int gpio1;                    /**< Mode for GPIO1 (pin 5) [GPIOMode enums] **/
-  int gpio2;                    /**< Mode for GPIO2 (pin 6) [GPIOMode enums] **/
+  int gpio1;                         /**< Mode for GPIO1 (pin 5) [GPIOMode enums] **/
+  int gpio2;                         /**< Mode for GPIO2 (pin 6) [GPIOMode enums] **/
   double pwm_freq;                   /**< PWM output frequency [min:1, max:10000] */
   double pwm_duty_cycle;             /**< PWM output duty cycle [min: 0, max: 1] */
 
@@ -150,8 +148,11 @@ struct CameraParameters {
   double output_rate;               /**< Frame publish rate (Hz) (0: publish all processed frames) [not applicable in external trigger mode] [min:0, max:200.0] */
   int pixel_clock;                  /**< Pixel clock (MHz) [min: 1, max: 500] */
 
-  bool flip_upd;                    /**< Mirror upside down */
-  bool flip_lr;                     /**< Mirror left right */
+  bool flip_vertical;                    /**< Mirror upside down */
+  bool flip_horizontal;                     /**< Mirror left right */
+
+  const static std::set<std::string> RestartFrameGrabberSet;
+  const static std::set<std::string> ReallocateBufferSet;
 
   CameraParameters():
     image_width(640), image_height(480),
@@ -185,17 +186,11 @@ struct CameraParameters {
     frame_rate(10.0),
     output_rate(0.0),
     pixel_clock(25),
-    flip_upd(false),
-    flip_lr(false)
+    flip_vertical(false),
+    flip_horizontal(false)
   {}
 
-  /**
-   * @brief Validate parameters, fallback if constraints are violated.
-   *
-   * Raises std::invalid_argument if one or more parameters were invalid. The string message
-   * contains a list of the violations and the fallbacks.
-   **/
-  void validate(const CameraParameters& fallbacks);
+  void validate() const; /**< Validate, raise invalid_argument if it fails */
   std::string to_str() const;  /**< Simple debugging convenience. */
 };
 

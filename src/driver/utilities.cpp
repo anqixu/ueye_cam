@@ -35,6 +35,7 @@
  ** Includes
  *****************************************************************************/
 
+#include <set>
 #include <sstream>
 #include <string>
 
@@ -53,6 +54,16 @@ namespace ueye_cam
 /*****************************************************************************
  ** Implementation
  *****************************************************************************/
+
+bool has_intersection(const std::set<std::string>& s1, const std::set<std::string>& s2) {
+  for (const std::string& s: s1) {
+    if (s2.find(s) != s2.end()) { return true; }
+  }
+  for (const std::string& s: s2) {
+    if (s1.find(s) != s1.end()) { return true; }
+  }
+  return false;
+}
 
 std::string sdk_version() {
 

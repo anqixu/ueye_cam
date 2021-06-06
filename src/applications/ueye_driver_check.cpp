@@ -65,10 +65,12 @@ int main(int argc, char** argv) {
     }
     if ( camera_id >= 0 ) {
     	ueye_cam::Driver driver(camera_id, "camera");
-    	int result = driver.connectCam();
-    	if ( result != 0 ) {
-    		std::cerr << "Could not connect to camera [" << ueye_cam::Driver::err2str(result) << "]" << std::endl;
-    		exit(1);
+        try {
+          driver.connectCam();
+        } catch (const std::runtime_error& e) {
+          std::cerr << "Failed to connect to camera [";
+          std::cerr << e.what() << "]" << std::endl;
+          exit(1);
     	}
     	std::cout << "Connected to camera '" << camera_id << "'" << std::endl;
     	driver.processNextFrame(500);

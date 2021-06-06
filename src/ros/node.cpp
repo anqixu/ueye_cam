@@ -45,6 +45,7 @@
 #include <cmath>
 #include <cstdlib> // getenv()
 #include <chrono>
+#include <fstream>
 #include <functional>
 #include <iomanip>
 #include <memory>
@@ -58,6 +59,7 @@
 #include <sensor_msgs/image_encodings.hpp>
 
 #include "../../include/ueye_cam/node.hpp"
+#include "../../include/ueye_cam/utilities.hpp"
 
 /*****************************************************************************
  ** Namespaces
@@ -90,6 +92,47 @@ const std::map<int, std::string> Node::ENCODING_DICTIONARY = {
 };
 
 /*****************************************************************************
+ ** Utilities
+ *****************************************************************************/
+
+enum LogLevel { WARN, ERROR, FATAL };
+
+void log_nested_exception(
+    const LogLevel& log_level,
+    const rclcpp::Logger logger,
+    const std::string& msg,
+    const int& level =  0
+) {
+  if ( !msg.empty() ) {
+    switch(log_level) {
+      case WARN: { RCLCPP_WARN(logger, "%s", msg.c_str()); break; }
+      case ERROR: { RCLCPP_ERROR(logger, "%s", msg.c_str()); break; }
+      case FATAL: { RCLCPP_FATAL(logger, "%s", msg.c_str()); break; }
+    }
+  }
+  try {
+      throw;
+  } catch (const std::exception& e) {
+    switch(log_level) {
+      case WARN: { RCLCPP_WARN(logger, " %s- ", std::string(level, ' ').c_str(), e.what()); break; }
+      case ERROR: { RCLCPP_ERROR(logger, " %s- %s", std::string(level, ' ').c_str(), e.what()); break; }
+      case FATAL: { RCLCPP_FATAL(logger, " %s- %s", std::string(level, ' ').c_str(), e.what()); break; }
+    }
+  }
+  try {
+      throw;
+  } catch (const std::nested_exception& nested) {
+      try {
+          nested.rethrow_nested();
+      } catch (...) {
+        log_nested_exception(log_level, logger, "", level + 1); // recursion
+      }
+  } catch (...) {
+      //Empty // End recursion
+  }
+}
+
+/*****************************************************************************
  ** Construction, Destruction
  *****************************************************************************/
 
@@ -115,33 +158,110 @@ Node::Node(const rclcpp::NodeOptions & options):
 {
   ros_image_.is_bigendian = (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__); // TODO: what about MS Windows?
 
-  reflectParameters();  // reflect parameter defaults back to the driver
-  declareParameters();  // declare what parameters this node supports
-  updateParameters();   // fetch updates coming from e.g. ros2 launch configuration
-
-  printConfiguration();
-  setupCommunications();
-  loadIntrinsicsFile();
-
-  if (connectCam() != IS_SUCCESS) {
-    RCLCPP_ERROR(this->get_logger(), "Failed to initialize [%s]", node_parameters_.camera_name.c_str(), node_parameters_.camera_id);
+  /******************************************
+   * Node Parameters
+   ******************************************/
+  NodeParameters default_node_parameters;
+  declareROSNodeParameters(default_node_parameters);
+  try {
+    node_parameters_ = fetchROSNodeParameters();
+    node_parameters_.validate();
+    reflectParameters();  // reflect various parameters to the driver / data structures
+  } catch (const std::invalid_argument& e) {
+    log_nested_exception(FATAL, this->get_logger(), "invalid node parameterisation retrieved, aborting.");
     return;
   }
 
-  startFrameGrabber();
+  /******************************************
+   * Basic ROS Setup
+   ******************************************/
+  loadIntrinsicsFile();           // camera_calibration
+  setupROSCommunications();       // middleware
+
+  /******************************************
+   * Camera Connection
+   ******************************************/
+  try {
+    Driver::connectCam();
+  } catch (const std::runtime_error& e) {
+    std::ostringstream ostream;
+    ostream << "failed to connect to camera '" << node_parameters_.camera_name << "', aborting.";
+    log_nested_exception(FATAL, this->get_logger(), ostream.str());
+    return;
+  }
+
+  // Camera Parameterisation
+  CameraParameters default_camera_parameters, camera_parameters;
+  if (std::ifstream(node_parameters_.camera_parameters_filename.c_str()).good()) {
+    // If using an IDS configuration, load that and read it back first before engaging further
+    try {
+      loadCamConfig(node_parameters_.camera_parameters_filename);
+    } catch (const std::runtime_error& e) {
+      std::ostringstream ostream;
+      ostream << "failed to load IDS configuration on camera '" << node_parameters_.camera_name << "', aborting.";
+      log_nested_exception(FATAL, this->get_logger(), ostream.str());
+      return;
+    }
+    // Pull back the configuration, use it as defaults for the ros parameterisation
+    default_camera_parameters = camera_parameters_;
+  }
+  declareROSCameraParameters(default_camera_parameters);
+  camera_parameters = fetchROSCameraParameters();  // can/will be different to defaults if e.g. launch configures them
+  try {
+    camera_parameters.validate();
+  } catch (const std::invalid_argument& e) {
+    std::ostringstream ostream;
+    ostream << "parameterisation on the ROS node for camera '" << node_parameters_.camera_name << "' is invalid, aborting.";
+    log_nested_exception(FATAL, this->get_logger(), ostream.str());
+    return;
+  }
+
+  // Set parameters on the camera. Surrender with useful information to the user if it fails.
+  try {
+    setCamParams(camera_parameters);
+  } catch (const std::runtime_error& e) {
+    std::ostringstream ostream;
+    ostream << "cannot set parameters on camera '" << node_parameters_.camera_name << "', aborting.";
+    log_nested_exception(FATAL, this->get_logger(), ostream.str());
+    return;
+  } catch (const std::invalid_argument& e) {
+    std::ostringstream ostream;
+    ostream << "failed to set parameters on camera '" << node_parameters_.camera_name << "', aborting.";
+    log_nested_exception(FATAL, this->get_logger(), ostream.str());
+    return;
+  }
+
+  startFrameGrabber();   // Ready to go!
+  printConfiguration();  // debugging
+
+  /******************************************
+   * Dynamic Parameters
+   ******************************************/
+  // Could be moved up front and save on one round of configuration, but better
+  // here since it lets a batched configuration be pre-tested that will
+  // fail hard and fast with useful warning messages.
+  setupParameterEventHandling();
 }
 
 Node::~Node()
 {
-  disconnectCam();
+  if (isConnected()) {
+    stopFrameGrabber();
+    try {
+      Driver::disconnectCam();
+    } catch (const std::runtime_error& e) {
+      std::ostringstream ostream;
+      ostream << "failed to disconnect camera '" << node_parameters_.camera_name << "' gracefully, aborting.";
+      log_nested_exception(FATAL, this->get_logger(), ostream.str());
+    }
+  }
 }
-
 
 /*****************************************************************************
  ** Initialisation - ROS / Camera
  *****************************************************************************/
 
-void Node::setupCommunications() {
+void Node::setupROSCommunications() {
   // Setup publishers, subscribers, and services
   auto local_node = this->create_sub_node(this->get_name());
   image_transport::ImageTransport it(local_node);
@@ -161,81 +281,6 @@ void Node::setCamInfo(const SetCameraInfoRequestPtr request, SetCameraInfoRespon
     "failed to write camera info to file";
 };
 
-/*****************************************************************************
- ** Camera Connection
- *****************************************************************************/
-
-INT Node::connectCam() {
-  INT is_err = IS_SUCCESS;
-
-  if ((is_err = Driver::connectCam()) != IS_SUCCESS) return is_err;
-
-  // (Attempt to) load UEye camera parameter configuration file
-  if (node_parameters_.camera_parameters_filename.length() <= 0) { // Use default filename
-    node_parameters_.camera_parameters_filename = \
-        std::string(getenv("HOME")) + \
-        "/.ros/camera_conf/" + \
-        node_parameters_.camera_name + \
-        ".ini";
-  }
-  if ((is_err = loadCamConfig(node_parameters_.camera_parameters_filename)) != IS_SUCCESS) return is_err;
-
-  // Sync parameters with the camera, update the driver state, buffers
-  if ((is_err = syncToCamera()) != IS_SUCCESS) return is_err;
-
-  return IS_SUCCESS;
-}
-
-
-INT Node::disconnectCam() {
-  INT is_err = IS_SUCCESS;
-
-  if (isConnected()) {
-    stopFrameGrabber();
-    is_err = Driver::disconnectCam();
-  }
-
-  return is_err;
-}
-
-INT Node::syncToCamera() {
-  // Return errors if updates are critical, a noop otherwise
-  INT is_err;
-  #define noop (void)0
-
-  // Configure color mode, resolution, binning, scaling and subsampling rate
-  if ((is_err = setColorMode(camera_parameters_.color_mode, false)) != IS_SUCCESS) return is_err;
-  if ((is_err = setSubsampling(camera_parameters_.subsampling, false)) != IS_SUCCESS) return is_err;
-  if ((is_err = setBinning(camera_parameters_.binning, false)) != IS_SUCCESS) return is_err;
-  if ((is_err = setResolution(
-      camera_parameters_.image_width, camera_parameters_.image_height,
-      camera_parameters_.image_left, camera_parameters_.image_top, false)) != IS_SUCCESS) return is_err;
-  if ((is_err = setSensorScaling(camera_parameters_.sensor_scaling, false)) != IS_SUCCESS) return is_err;
-
-  // Configure camera sensor parameters
-  // NOTE: failing to configure certain parameters may or may not cause camera to fail;
-  //       cuurently their failures are treated as non-critical
-  if ((is_err = setGain(camera_parameters_.auto_gain, camera_parameters_.master_gain,
-      camera_parameters_.red_gain, camera_parameters_.green_gain,
-      camera_parameters_.blue_gain, camera_parameters_.gain_boost)) != IS_SUCCESS) noop;
-  if ((is_err = setSoftwareGamma(camera_parameters_.software_gamma)) != IS_SUCCESS) noop;
-  if ((is_err = setPixelClockRate(camera_parameters_.pixel_clock)) != IS_SUCCESS) return is_err;
-  if ((is_err = setFrameRate(camera_parameters_.auto_frame_rate, camera_parameters_.frame_rate)) != IS_SUCCESS) return is_err;
-  if ((is_err = setExposure(camera_parameters_.auto_exposure, camera_parameters_.auto_exposure_reference, camera_parameters_.exposure)) != IS_SUCCESS) noop;
-  if ((is_err = setWhiteBalance(
-      camera_parameters_.auto_white_balance,
-      camera_parameters_.white_balance_red_offset,
-      camera_parameters_.white_balance_blue_offset)) != IS_SUCCESS) noop;
-  if ((is_err = setGpioMode(1, camera_parameters_.gpio1, camera_parameters_.pwm_freq, camera_parameters_.pwm_duty_cycle)) != IS_SUCCESS) noop;
-  if ((is_err = setGpioMode(2, camera_parameters_.gpio2, camera_parameters_.pwm_freq, camera_parameters_.pwm_duty_cycle)) != IS_SUCCESS) noop;
-  if ((is_err = setMirrorUpsideDown(camera_parameters_.flip_upd)) != IS_SUCCESS) noop;
-  if ((is_err = setMirrorLeftRight(camera_parameters_.flip_lr)) != IS_SUCCESS) noop;
-
-  // Finally, re-initialise driver state and buffers
-  if ((is_err = Driver::syncCamConfig(ColorMode::MONO8)) != IS_SUCCESS) return is_err;
-  #undef noop
-  return is_err;
-}
 
 /*****************************************************************************
  ** Frame Grabbing
@@ -292,14 +337,18 @@ void Node::frameGrabLoop() {
 
     if (camera_parameters_.ext_trigger_mode) {
       if (setExtTriggerMode(camera_parameters_.trigger_rising_edge) != IS_SUCCESS) {
-        RCLCPP_ERROR(this->get_logger(), "Shutting down driver nodelet for [%s]", node_parameters_.camera_name.c_str());
+        std::ostringstream ostream;
+        ostream << "failed to set external trigger mode on camera '" << node_parameters_.camera_name << "', aborting.";
+        log_nested_exception(FATAL, this->get_logger(), ostream.str());
         rclcpp::shutdown();
         return;
       }
-      RCLCPP_INFO(this->get_logger(), "[%s] switched to trigger mode", node_parameters_.camera_name.c_str());
+      RCLCPP_INFO(this->get_logger(), "switched to trigger mode on camera '%s'", node_parameters_.camera_name.c_str());
     } else {
       if (setFreeRunMode() != IS_SUCCESS) {
-        RCLCPP_ERROR(this->get_logger(), "Shutting down driver nodelet for [%s]", node_parameters_.camera_name.c_str());
+        std::ostringstream ostream;
+        ostream << "failed to set free run mode on camera '" << node_parameters_.camera_name << "', aborting.";
+        log_nested_exception(FATAL, this->get_logger(), ostream.str());
         rclcpp::shutdown();
         return;
       }
@@ -314,19 +363,17 @@ void Node::frameGrabLoop() {
       camera_parameters_.flash_delay = flash_delay;
       camera_parameters_.flash_duration = static_cast<int>(flash_duration);
 
-      RCLCPP_INFO(this->get_logger(), "[%s] switched to streaming mode (free-run)", node_parameters_.camera_name.c_str());
+      RCLCPP_INFO(this->get_logger(), "switched to streaming (free-run) mode on camera '%s'", node_parameters_.camera_name.c_str());
     }
   } else if (currNumSubscribers <= 0 && prevNumSubscribers > 0) {
     if (setStandbyMode() != IS_SUCCESS) {
-      RCLCPP_ERROR(
-        this->get_logger(),
-        "Failed to set standby mode, shutting down [%s]",
-        node_parameters_.camera_name.c_str()
-      );
+      std::ostringstream ostream;
+      ostream << "failed to set standby mode on camera '" << node_parameters_.camera_name << "', aborting.";
+      log_nested_exception(FATAL, this->get_logger(), ostream.str());
       rclcpp::shutdown();
       return;
     }
-    RCLCPP_INFO(this->get_logger(), "[%s] switched to standby mode", node_parameters_.camera_name.c_str());
+    RCLCPP_INFO(this->get_logger(), "switched to standby mode on camera '%s'", node_parameters_.camera_name.c_str());
   }
   prevNumSubscribers = currNumSubscribers;
 
@@ -439,12 +486,14 @@ void Node::frameGrabLoop() {
   setStandbyMode();
   frame_grab_alive_ = false;
 
-  RCLCPP_DEBUG(this->get_logger(), "Frame grabber loop terminated for [%s]", node_parameters_.camera_name);
+  RCLCPP_DEBUG(this->get_logger(), "Frame grabber loop terminated for [%s]", node_parameters_.camera_name.c_str());
 }
 
 bool Node::fillMsgData(sensor_msgs::msg::Image& img) const {
   // Copy pixel content from internal frame buffer to img
   // and unpack to proper pixel format
+
+  // TODO: this validation should occur back in the driver
   INT expected_row_stride = cam_aoi_.s32Width * bits_per_pixel_/8;
   if (cam_buffer_pitch_ < expected_row_stride) {
     RCLCPP_ERROR(
@@ -499,131 +548,128 @@ bool Node::fillMsgData(sensor_msgs::msg::Image& img) const {
  ** Parameters
  *****************************************************************************/
 
-void Node::declareParameters() {
-  // TODO: Move these parameters to a namespaced subnode so they are easily differentiated from
-  //       camera agnostic parameters. This is pending on https://github.com/ros2/rclcpp/issues/731.
-  this->declare_parameter("image_width",               rclcpp::ParameterValue(camera_parameters_.image_width));
-  this->declare_parameter("image_height",              rclcpp::ParameterValue(camera_parameters_.image_height));
-  this->declare_parameter("image_left",                rclcpp::ParameterValue(camera_parameters_.image_left));
-  this->declare_parameter("image_top",                 rclcpp::ParameterValue(camera_parameters_.image_top));
-  this->declare_parameter("color_mode",                rclcpp::ParameterValue(camera_parameters_.color_mode));
-  this->declare_parameter("subsampling",               rclcpp::ParameterValue(static_cast<int>(camera_parameters_.subsampling)));
-  this->declare_parameter("binning",                   rclcpp::ParameterValue(static_cast<int>(camera_parameters_.binning)));
-  this->declare_parameter("sensor_scaling",            rclcpp::ParameterValue(camera_parameters_.sensor_scaling));
-  this->declare_parameter("auto_gain",                 rclcpp::ParameterValue(camera_parameters_.auto_gain));
-  this->declare_parameter("master_gain",               rclcpp::ParameterValue(camera_parameters_.master_gain));
-  this->declare_parameter("red_gain",                  rclcpp::ParameterValue(camera_parameters_.red_gain));
-  this->declare_parameter("green_gain",                rclcpp::ParameterValue(camera_parameters_.green_gain));
-  this->declare_parameter("blue_gain",                 rclcpp::ParameterValue(camera_parameters_.blue_gain));
-  this->declare_parameter("gain_boost",                rclcpp::ParameterValue(camera_parameters_.gain_boost));
-  this->declare_parameter("software_gamma",            rclcpp::ParameterValue(camera_parameters_.software_gamma));
-  this->declare_parameter("auto_exposure",             rclcpp::ParameterValue(camera_parameters_.auto_exposure));
-  this->declare_parameter("auto_exposure_reference",   rclcpp::ParameterValue(camera_parameters_.auto_exposure_reference));
-  this->declare_parameter("exposure",                  rclcpp::ParameterValue(camera_parameters_.exposure));
-  this->declare_parameter("auto_white_balance",        rclcpp::ParameterValue(camera_parameters_.auto_white_balance));
-  this->declare_parameter("white_balance_red_offset",  rclcpp::ParameterValue(camera_parameters_.white_balance_red_offset));
-  this->declare_parameter("white_balance_blue_offset", rclcpp::ParameterValue(camera_parameters_.white_balance_blue_offset));
-  this->declare_parameter("flash_delay",               rclcpp::ParameterValue(camera_parameters_.flash_delay));
-  this->declare_parameter("flash_duration",            rclcpp::ParameterValue(camera_parameters_.flash_duration));
-  this->declare_parameter("ext_trigger_mode",          rclcpp::ParameterValue(camera_parameters_.ext_trigger_mode));
-  this->declare_parameter("trigger_rising_edge",       rclcpp::ParameterValue(camera_parameters_.trigger_rising_edge));
-  this->declare_parameter("gpio1",                     rclcpp::ParameterValue(camera_parameters_.gpio1));
-  this->declare_parameter("gpio2",                     rclcpp::ParameterValue(camera_parameters_.gpio2));
-  this->declare_parameter("pwm_freq",                  rclcpp::ParameterValue(camera_parameters_.pwm_freq));
-  this->declare_parameter("pwm_duty_cycle",            rclcpp::ParameterValue(camera_parameters_.pwm_duty_cycle));
-  this->declare_parameter("auto_frame_rate",           rclcpp::ParameterValue(camera_parameters_.auto_frame_rate));
-  this->declare_parameter("frame_rate",                rclcpp::ParameterValue(camera_parameters_.frame_rate));
-  this->declare_parameter("output_rate",               rclcpp::ParameterValue(camera_parameters_.output_rate)); // disable by default
-  this->declare_parameter("pixel_clock",               rclcpp::ParameterValue(camera_parameters_.pixel_clock));
-  this->declare_parameter("flip_upd",                  rclcpp::ParameterValue(camera_parameters_.flip_upd));
-  this->declare_parameter("flip_lr",                   rclcpp::ParameterValue(camera_parameters_.flip_lr));
-
-  // Declare Camera Agnostic Parameters
-  this->declare_parameter("camera_name",                rclcpp::ParameterValue(node_parameters_.camera_name));
-  this->declare_parameter("camera_id",                  rclcpp::ParameterValue(node_parameters_.camera_id));
-  this->declare_parameter("frame_name",                 rclcpp::ParameterValue(node_parameters_.frame_name));
-  this->declare_parameter("topic_name",                 rclcpp::ParameterValue(node_parameters_.topic_name));
-  this->declare_parameter("camera_intrinsics_filename", rclcpp::ParameterValue(node_parameters_.camera_intrinsics_filename));
-  this->declare_parameter("camera_parameters_filename", rclcpp::ParameterValue(node_parameters_.camera_parameters_filename));
+void Node::declareROSNodeParameters(const NodeParameters& defaults) {
+  // Declare Node Specific / Camera Agnostic Parameters
+  this->declare_parameter("camera_name",                rclcpp::ParameterValue(defaults.camera_name));
+  this->declare_parameter("camera_id",                  rclcpp::ParameterValue(defaults.camera_id));
+  this->declare_parameter("frame_name",                 rclcpp::ParameterValue(defaults.frame_name));
+  this->declare_parameter("topic_name",                 rclcpp::ParameterValue(defaults.topic_name));
+  this->declare_parameter("camera_intrinsics_filename", rclcpp::ParameterValue(defaults.camera_intrinsics_filename));
+  this->declare_parameter("camera_parameters_filename", rclcpp::ParameterValue(defaults.camera_parameters_filename));
 }
 
-void Node::updateParameters() {
-  NodeParameters old_node_parameters = node_parameters_;
-  CameraParameters old_camera_parameters = camera_parameters_;
 
-  // TODO: This is only called on initialisation, so it will fetch ros2 launch defined parameters
-  //       but is not yet truly dynamic. Need parameter event handling and callbacks working.
+void Node::declareROSCameraParameters(const CameraParameters& defaults) {
+  // TODO: Move these parameters to a namespaced subnode so they are easily differentiated from
+  //       camera agnostic parameters. This is pending on https://github.com/ros2/rclcpp/issues/731.
+  this->declare_parameter("image_width",               rclcpp::ParameterValue(defaults.image_width));
+  this->declare_parameter("image_height",              rclcpp::ParameterValue(defaults.image_height));
+  this->declare_parameter("image_left",                rclcpp::ParameterValue(defaults.image_left));
+  this->declare_parameter("image_top",                 rclcpp::ParameterValue(defaults.image_top));
+  this->declare_parameter("color_mode",                rclcpp::ParameterValue(defaults.color_mode));
+  this->declare_parameter("subsampling",               rclcpp::ParameterValue(static_cast<int>(defaults.subsampling)));
+  this->declare_parameter("binning",                   rclcpp::ParameterValue(static_cast<int>(defaults.binning)));
+  this->declare_parameter("sensor_scaling",            rclcpp::ParameterValue(defaults.sensor_scaling));
+  this->declare_parameter("auto_gain",                 rclcpp::ParameterValue(defaults.auto_gain));
+  this->declare_parameter("master_gain",               rclcpp::ParameterValue(defaults.master_gain));
+  this->declare_parameter("red_gain",                  rclcpp::ParameterValue(defaults.red_gain));
+  this->declare_parameter("green_gain",                rclcpp::ParameterValue(defaults.green_gain));
+  this->declare_parameter("blue_gain",                 rclcpp::ParameterValue(defaults.blue_gain));
+  this->declare_parameter("gain_boost",                rclcpp::ParameterValue(defaults.gain_boost));
+  this->declare_parameter("software_gamma",            rclcpp::ParameterValue(defaults.software_gamma));
+  this->declare_parameter("auto_exposure",             rclcpp::ParameterValue(defaults.auto_exposure));
+  this->declare_parameter("auto_exposure_reference",   rclcpp::ParameterValue(defaults.auto_exposure_reference));
+  this->declare_parameter("exposure",                  rclcpp::ParameterValue(defaults.exposure));
+  this->declare_parameter("auto_white_balance",        rclcpp::ParameterValue(defaults.auto_white_balance));
+  this->declare_parameter("white_balance_red_offset",  rclcpp::ParameterValue(defaults.white_balance_red_offset));
+  this->declare_parameter("white_balance_blue_offset", rclcpp::ParameterValue(defaults.white_balance_blue_offset));
+  this->declare_parameter("flash_delay",               rclcpp::ParameterValue(defaults.flash_delay));
+  this->declare_parameter("flash_duration",            rclcpp::ParameterValue(defaults.flash_duration));
+  this->declare_parameter("ext_trigger_mode",          rclcpp::ParameterValue(defaults.ext_trigger_mode));
+  this->declare_parameter("trigger_rising_edge",       rclcpp::ParameterValue(defaults.trigger_rising_edge));
+  this->declare_parameter("gpio1",                     rclcpp::ParameterValue(defaults.gpio1));
+  this->declare_parameter("gpio2",                     rclcpp::ParameterValue(defaults.gpio2));
+  this->declare_parameter("pwm_freq",                  rclcpp::ParameterValue(defaults.pwm_freq));
+  this->declare_parameter("pwm_duty_cycle",            rclcpp::ParameterValue(defaults.pwm_duty_cycle));
+  this->declare_parameter("auto_frame_rate",           rclcpp::ParameterValue(defaults.auto_frame_rate));
+  this->declare_parameter("frame_rate",                rclcpp::ParameterValue(defaults.frame_rate));
+  this->declare_parameter("output_rate",               rclcpp::ParameterValue(defaults.output_rate)); // disable by default
+  this->declare_parameter("pixel_clock",               rclcpp::ParameterValue(defaults.pixel_clock));
+  this->declare_parameter("flip_vertical",             rclcpp::ParameterValue(defaults.flip_vertical));
+  this->declare_parameter("flip_horizontal",                   rclcpp::ParameterValue(defaults.flip_horizontal));
+}
 
-  // Load node parameters
-  this->get_parameter<std::string>("camera_name",                node_parameters_.camera_name);
-  this->get_parameter<int>("camera_id",                          node_parameters_.camera_id);
-  this->get_parameter<std::string>("frame_name",                 node_parameters_.frame_name);
-  this->get_parameter<std::string>("topic_name",                 node_parameters_.topic_name);
-  this->get_parameter<std::string>("camera_intrinsics_filename", node_parameters_.camera_intrinsics_filename);
-  this->get_parameter<std::string>("camera_parameters_filename", node_parameters_.camera_parameters_filename);
 
-  this->get_parameter<int>("image_width",               camera_parameters_.image_width);
-  this->get_parameter<int>("image_height",              camera_parameters_.image_height);
-  this->get_parameter<int>("image_left",                camera_parameters_.image_left);
-  this->get_parameter<int>("image_top",                 camera_parameters_.image_top);
-  this->get_parameter<std::string>("color_mode",        camera_parameters_.color_mode);
-  this->get_parameter<unsigned int>("subsampling",      camera_parameters_.subsampling);
-  this->get_parameter<unsigned int>("binning",          camera_parameters_.binning);
-  this->get_parameter<double>("sensor_scaling",         camera_parameters_.sensor_scaling);
-  this->get_parameter<bool>("auto_gain",                camera_parameters_.auto_gain);
-  this->get_parameter<int>("master_gain",               camera_parameters_.master_gain);
-  this->get_parameter<int>("red_gain",                  camera_parameters_.red_gain);
-  this->get_parameter<int>("green_gain",                camera_parameters_.green_gain);
-  this->get_parameter<int>("blue_gain",                 camera_parameters_.blue_gain);
-  this->get_parameter<bool>("gain_boost",               camera_parameters_.gain_boost);
-  this->get_parameter<int>("software_gamma",            camera_parameters_.software_gamma);
-  this->get_parameter<bool>("auto_exposure",            camera_parameters_.auto_exposure);
-  this->get_parameter<double>("auto_exposure_reference",camera_parameters_.auto_exposure_reference);
-  this->get_parameter<double>("exposure",               camera_parameters_.exposure);
-  this->get_parameter<bool>("auto_white_balance",       camera_parameters_.auto_white_balance);
-  this->get_parameter<int>("white_balance_red_offset",  camera_parameters_.white_balance_red_offset);
-  this->get_parameter<int>("white_balance_blue_offset", camera_parameters_.white_balance_blue_offset);
-  this->get_parameter<int>("flash_delay",               camera_parameters_.flash_delay);
-  this->get_parameter<int>("flash_duration",            camera_parameters_.flash_duration);
-  this->get_parameter<bool>("ext_trigger_mode",         camera_parameters_.ext_trigger_mode);
-  this->get_parameter<bool>("trigger_rising_edge",      camera_parameters_.trigger_rising_edge);
-  this->get_parameter<int>("gpio1",                     camera_parameters_.gpio1);
-  this->get_parameter<int>("gpio2",                     camera_parameters_.gpio2);
-  this->get_parameter<double>("pwm_freq",               camera_parameters_.pwm_freq);
-  this->get_parameter<double>("pwm_duty_cycle",         camera_parameters_.pwm_duty_cycle);
-  this->get_parameter<bool>("auto_frame_rate",          camera_parameters_.auto_frame_rate);
-  this->get_parameter<double>("frame_rate",             camera_parameters_.frame_rate);
-  this->get_parameter<double>("output_rate",            camera_parameters_.output_rate); // disable by default
-  this->get_parameter<int>("pixel_clock",               camera_parameters_.pixel_clock);
-  this->get_parameter<bool>("flip_upd",                 camera_parameters_.flip_upd);
-  this->get_parameter<bool>("flip_lr",                  camera_parameters_.flip_lr);
+const NodeParameters Node::fetchROSNodeParameters() const {
+  NodeParameters parameters;
+  this->get_parameter<std::string>("camera_name",                parameters.camera_name);
+  this->get_parameter<int>("camera_id",                          parameters.camera_id);
+  this->get_parameter<std::string>("frame_name",                 parameters.frame_name);
+  this->get_parameter<std::string>("topic_name",                 parameters.topic_name);
+  this->get_parameter<std::string>("camera_intrinsics_filename", parameters.camera_intrinsics_filename);
+  this->get_parameter<std::string>("camera_parameters_filename", parameters.camera_parameters_filename);
 
-  /****************************************
-   * Validate & Fallback if Necessary
-   ****************************************/
-  if (node_parameters_.camera_id < 0) {
-    RCLCPP_WARN(this->get_logger(), "Invalid camera ID specified: %s -> setting to ANY_CAMERA", node_parameters_.camera_id);
-    node_parameters_.camera_id = ANY_CAMERA;
+  // Configure default filenames if none were specified
+  // Do here rather than at declaration since it depends on camera_name
+
+  // TODO: fetch the ros home directory from rclcpp api instead of hardcoding .ros
+  std::string root = std::string(getenv("HOME")) + "/.ros";
+  if (parameters.camera_intrinsics_filename.length() <= 0) {
+    parameters.camera_intrinsics_filename = root + "/camera_info/" + parameters.camera_name + ".yaml";
   }
-  try {
-    camera_parameters_.validate(old_camera_parameters);
-  } catch (const std::invalid_argument& e) {
-    RCLCPP_WARN(this->get_logger(), "camera configuration problems detected\n%s", e.what());
+  if (parameters.camera_parameters_filename.length() <= 0) {
+    parameters.camera_parameters_filename = root + "/camera_conf/" + parameters.camera_name + ".ini";
   }
+  return parameters;
+}
 
-  reflectParameters();
+const CameraParameters Node::fetchROSCameraParameters() const {
+  CameraParameters parameters;
+
+  this->get_parameter<int>("image_width",               parameters.image_width);
+  this->get_parameter<int>("image_height",              parameters.image_height);
+  this->get_parameter<int>("image_left",                parameters.image_left);
+  this->get_parameter<int>("image_top",                 parameters.image_top);
+  this->get_parameter<std::string>("color_mode",        parameters.color_mode);
+  this->get_parameter<unsigned int>("subsampling",      parameters.subsampling);
+  this->get_parameter<unsigned int>("binning",          parameters.binning);
+  this->get_parameter<double>("sensor_scaling",         parameters.sensor_scaling);
+  this->get_parameter<bool>("auto_gain",                parameters.auto_gain);
+  this->get_parameter<int>("master_gain",               parameters.master_gain);
+  this->get_parameter<int>("red_gain",                  parameters.red_gain);
+  this->get_parameter<int>("green_gain",                parameters.green_gain);
+  this->get_parameter<int>("blue_gain",                 parameters.blue_gain);
+  this->get_parameter<bool>("gain_boost",               parameters.gain_boost);
+  this->get_parameter<int>("software_gamma",            parameters.software_gamma);
+  this->get_parameter<bool>("auto_exposure",            parameters.auto_exposure);
+  this->get_parameter<double>("auto_exposure_reference",parameters.auto_exposure_reference);
+  this->get_parameter<double>("exposure",               parameters.exposure);
+  this->get_parameter<bool>("auto_white_balance",       parameters.auto_white_balance);
+  this->get_parameter<int>("white_balance_red_offset",  parameters.white_balance_red_offset);
+  this->get_parameter<int>("white_balance_blue_offset", parameters.white_balance_blue_offset);
+  this->get_parameter<int>("flash_delay",               parameters.flash_delay);
+  this->get_parameter<int>("flash_duration",            parameters.flash_duration);
+  this->get_parameter<bool>("ext_trigger_mode",         parameters.ext_trigger_mode);
+  this->get_parameter<bool>("trigger_rising_edge",      parameters.trigger_rising_edge);
+  this->get_parameter<int>("gpio1",                     parameters.gpio1);
+  this->get_parameter<int>("gpio2",                     parameters.gpio2);
+  this->get_parameter<double>("pwm_freq",               parameters.pwm_freq);
+  this->get_parameter<double>("pwm_duty_cycle",         parameters.pwm_duty_cycle);
+  this->get_parameter<bool>("auto_frame_rate",          parameters.auto_frame_rate);
+  this->get_parameter<double>("frame_rate",             parameters.frame_rate);
+  this->get_parameter<double>("output_rate",            parameters.output_rate); // disable by default
+  this->get_parameter<int>("pixel_clock",               parameters.pixel_clock);
+  this->get_parameter<bool>("flip_vertical",                 parameters.flip_vertical);
+  this->get_parameter<bool>("flip_horizontal",                  parameters.flip_horizontal);
+  return parameters;
 }
 
 void Node::reflectParameters() {
   // Parameterising from ROS, so some of these need to be reflected back to the driver.
-  // Others need to be reflected to the ROS msg structures
-
-  // Do not forget to call this whenever parameters are updated!
-  // TODO(DJS): Can we get the driver to use the camera_parameters struct directly? Need to make sure
-  //            it can play nicely with dynamic parameters and callbacks in the ros wrapper (need mutexes)
   cam_name_ = node_parameters_.camera_name;
   cam_id_ = node_parameters_.camera_id;
 
+  // Also reflect to the ROS msg structures
   ros_image_.header.frame_id = node_parameters_.frame_name;
 }
 
@@ -643,26 +689,125 @@ void Node::setupParameterEventHandling() {
 
 bool Node::onParameterEvent(const ParameterEventPtr event)
 {
-  RCLCPP_INFO(this->get_logger(), "onParameterEventTriggered");
-  std::cout << "onParameterEvent Triggered" << std::endl;
   if (
     !event->new_parameters.size() && !event->changed_parameters.size() &&
     !event->deleted_parameters.size())
   {
     return false;
   }
-  std::cout << "Parameter event:" << std::endl << " new parameters:" << std::endl;
-  for (auto & new_parameter : event->new_parameters) {
-    std::cout << "  " << new_parameter.name << std::endl;
+  /****************************************
+   * On New
+   ***************************************/
+  for (auto & parameter : event->new_parameters) {
+    RCLCPP_WARN(this->get_logger(), "not handling requests for new parameters, ignoring [%s].", parameter.name.c_str());
   }
-  std::cout << " changed parameters:" << std::endl;
-  for (auto & changed_parameter : event->changed_parameters) {
-    std::cout << "  " << changed_parameter.name << std::endl;
+  /****************************************
+   * On Deleted
+   ***************************************/
+  for (auto & parameter : event->deleted_parameters) {
+    RCLCPP_WARN(this->get_logger(), "not handling requests for deleted parameters, ignoring [%s].", parameter.name.c_str());
   }
-  std::cout << " deleted parameters:" << std::endl;
-  for (auto & deleted_parameter : event->deleted_parameters) {
-    std::cout << "  " << deleted_parameter.name << std::endl;
+  /****************************************
+   * On Changes
+   ***************************************/
+  if (!isConnected()) {
+    std::ostringstream ostream;
+    RCLCPP_WARN(this->get_logger(), "cannot reconfigure parameters [camera not connected]");
+    // TODO: unset changes
+    return false;
   }
+
+
+  bool restart_frame_grabber = false;
+  // Special handling needed?
+  std::set<std::string> changed_parameters;
+  for (auto & parameter : event->changed_parameters) {
+    changed_parameters.insert(parameter.name);
+    if ( CameraParameters::RestartFrameGrabberSet.find(parameter.name) != CameraParameters::RestartFrameGrabberSet.end() ) {
+      restart_frame_grabber = true;
+    }
+  }
+  if (restart_frame_grabber && frame_grab_alive_) {
+    stopFrameGrabber();
+  }
+  // Validate parameters
+  CameraParameters original_parameters = camera_parameters_;
+  CameraParameters new_parameters = camera_parameters_;
+  for (auto & msg : event->changed_parameters) {
+    rclcpp::Parameter parameter = rclcpp::Parameter::from_parameter_msg(msg);
+    if (parameter.get_name() == "color_mode") { new_parameters.color_mode = parameter.as_string(); }
+    else if (parameter.get_name() == "image_width" ) { new_parameters.image_width = parameter.as_int(); }
+    else if (parameter.get_name() == "image_height" ) { new_parameters.image_height = parameter.as_int(); }
+    else if (parameter.get_name() == "image_left" ) { new_parameters.image_left = parameter.as_int(); }
+    else if (parameter.get_name() == "image_top" ) { new_parameters.image_top = parameter.as_int(); }
+    else if (parameter.get_name() == "subsampling" ) { new_parameters.subsampling = parameter.as_int(); }
+    else if (parameter.get_name() == "binning" ) { new_parameters.binning = parameter.as_int(); }
+    else if (parameter.get_name() == "sensor_scaling" ) { new_parameters.sensor_scaling = parameter.as_double(); }
+    else if (parameter.get_name() == "auto_gain" ) { new_parameters.auto_gain = parameter.as_bool(); }
+    else if (parameter.get_name() == "master_gain" ) { new_parameters.master_gain = parameter.as_int(); }
+    else if (parameter.get_name() == "red_gain" ) { new_parameters.red_gain = parameter.as_int(); }
+    else if (parameter.get_name() == "green_gain" ) { new_parameters.green_gain = parameter.as_int(); }
+    else if (parameter.get_name() == "blue_gain" ) { new_parameters.blue_gain = parameter.as_int(); }
+    else if (parameter.get_name() == "gain_boost" ) { new_parameters.gain_boost = parameter.as_bool(); }
+    else if (parameter.get_name() == "software_gamma" ) { new_parameters.software_gamma = parameter.as_int(); }
+    else if (parameter.get_name() == "auto_exposure" ) { new_parameters.auto_exposure = parameter.as_bool(); }
+    else if (parameter.get_name() == "auto_exposure_reference" ) { new_parameters.auto_exposure_reference = parameter.as_double(); }
+    else if (parameter.get_name() == "exposure" ) { new_parameters.exposure = parameter.as_double(); }
+    else if (parameter.get_name() == "auto_white_balance" ) { new_parameters.auto_white_balance = parameter.as_bool(); }
+    else if (parameter.get_name() == "white_balance_red_offset" ) { new_parameters.white_balance_red_offset = parameter.as_int(); }
+    else if (parameter.get_name() == "white_balance_blue_offset" ) { new_parameters.white_balance_blue_offset = parameter.as_int(); }
+    else if (parameter.get_name() == "flash_delay" ) { new_parameters.flash_delay = parameter.as_int(); }
+    else if (parameter.get_name() == "flash_duration" ) { new_parameters.flash_duration = parameter.as_int(); }
+    else if (parameter.get_name() == "ext_trigger_mode" ) { new_parameters.ext_trigger_mode = parameter.as_bool(); }
+    else if (parameter.get_name() == "trigger_rising_edge" ) { new_parameters.trigger_rising_edge = parameter.as_bool(); }
+    else if (parameter.get_name() == "gpio1" ) { new_parameters.gpio1 = parameter.as_int(); }
+    else if (parameter.get_name() == "gpio2" ) { new_parameters.gpio2 = parameter.as_int(); }
+    else if (parameter.get_name() == "pwm_freq" ) { new_parameters.pwm_freq = parameter.as_double(); }
+    else if (parameter.get_name() == "pwm_duty_cycle" ) { new_parameters.pwm_duty_cycle = parameter.as_double(); }
+    else if (parameter.get_name() == "auto_frame_rate" ) { new_parameters.auto_frame_rate = parameter.as_bool(); }
+    else if (parameter.get_name() == "frame_rate" ) { new_parameters.frame_rate = parameter.as_double(); }
+    else if (parameter.get_name() == "output_rate" ) { new_parameters.output_rate = parameter.as_double(); }
+    else if (parameter.get_name() == "pixel_clock" ) { new_parameters.pixel_clock = parameter.as_int(); }
+    else if (parameter.get_name() == "flip_vertical" ) { new_parameters.flip_vertical = parameter.as_bool(); }
+    else if (parameter.get_name() == "flip_horizontal" ) { new_parameters.flip_horizontal = parameter.as_bool(); }
+    else {
+      RCLCPP_WARN(this->get_logger(), "[%s] is not a reconfigurable parameter, rejecting.", parameter.get_name());
+      // TODO: unset all changed parameters (just returning 'false' doesn't do this)
+      return false;
+    }
+  }
+
+  // validate
+  try {
+    new_parameters.validate();
+  } catch (const std::invalid_argument& e) {
+    RCLCPP_WARN(this->get_logger(), "parameter reconfiguration invalid, rejecting\n%s", e.what());
+    return false;
+  }
+
+  // set parameters on camera
+  try {
+    setCamParams(new_parameters, changed_parameters);
+  } catch (const std::invalid_argument& e) {
+    // restore original 'working' parameters
+    std::ostringstream ostream;
+    ostream << "failed to reconfigure parameters on camera, rejecting [" << e.what() << "]";
+    RCLCPP_WARN(this->get_logger(), ostream.str().c_str());
+    try {
+      setCamParams(original_parameters);
+    } catch (const std::invalid_argument& e) {
+      RCLCPP_FATAL(this->get_logger(), "Failed to restore camera configuration to a working state, aborting");
+      throw std::runtime_error("Failed to restore camera configuration to a working state, aborting");
+    }
+    // TODO: unset all changed parameters (just returning 'false' doesn't do this)
+    return false;
+  }
+
+  if (restart_frame_grabber) {
+    startFrameGrabber();
+  }
+
+  printConfiguration();           // debugging
   return true;
 }
 
@@ -671,14 +816,6 @@ bool Node::onParameterEvent(const ParameterEventPtr event)
  *****************************************************************************/
 
 void Node::loadIntrinsicsFile() {
-  if (node_parameters_.camera_intrinsics_filename.length() <= 0) { // Use default filename
-    // TODO: fetch the ros home directory from rclcpp api instead of hardcoding .ros
-    node_parameters_.camera_intrinsics_filename = std::string(getenv("HOME")) + \
-        "/.ros/camera_info/" + \
-        node_parameters_.camera_name + \
-        ".yaml";
-  }
-
   if (camera_calibration_parsers::readCalibration(node_parameters_.camera_intrinsics_filename, node_parameters_.camera_name, ros_cam_info_)) {
     RCLCPP_DEBUG(this->get_logger(), "Loaded intrinsics parameters for [%s]", node_parameters_.camera_name.c_str());
   }
@@ -738,192 +875,6 @@ void Node::printConfiguration() const {
   ostream << node_parameters_.to_str() << "\n";
   ostream << camera_parameters_.to_str();
   RCLCPP_INFO(this->get_logger(), ostream.str());
-}
-
-INT Node::queryCamera() {
-  // Not querying everything yet, but should be a useful tool to help run
-  // A-B comparisons on desired vs actual camera parameterisation.
-
-  CameraParameters camera_parameters;
-  INT is_err = IS_SUCCESS;
-  int query;
-  double pval1, pval2;
-
-  if ((is_err = is_SetAutoParameter(cam_handle_,
-      IS_GET_ENABLE_AUTO_SENSOR_GAIN, &pval1, &pval2)) != IS_SUCCESS &&
-      (is_err = is_SetAutoParameter(cam_handle_,
-          IS_GET_ENABLE_AUTO_GAIN, &pval1, &pval2)) != IS_SUCCESS) {
-    RCLCPP_ERROR(
-      this->get_logger(),
-      "Failed to query auto gain mode for [%s] (%s)",
-      node_parameters_.camera_name,
-      err2str(is_err)
-    );
-    return is_err;
-  }
-  camera_parameters.auto_gain = (pval1 != 0);
-
-  camera_parameters.master_gain = is_SetHardwareGain(cam_handle_, IS_GET_MASTER_GAIN,
-      IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
-  camera_parameters.red_gain = is_SetHardwareGain(cam_handle_, IS_GET_RED_GAIN,
-      IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
-  camera_parameters.green_gain = is_SetHardwareGain(cam_handle_, IS_GET_GREEN_GAIN,
-      IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
-  camera_parameters.blue_gain = is_SetHardwareGain(cam_handle_, IS_GET_BLUE_GAIN,
-      IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
-
-  query = is_SetGainBoost(cam_handle_, IS_GET_SUPPORTED_GAINBOOST);
-  if(query == IS_SET_GAINBOOST_ON) {
-    query = is_SetGainBoost(cam_handle_, IS_GET_GAINBOOST);
-    if (query == IS_SET_GAINBOOST_ON) {
-      camera_parameters.gain_boost = true;
-    } else if (query == IS_SET_GAINBOOST_OFF) {
-      camera_parameters.gain_boost = false;
-    } else {
-      RCLCPP_ERROR(
-        this->get_logger(),
-        "Failed to query gain boost for [%s] (%s)",
-        node_parameters_.camera_name,
-        err2str(is_err)
-      );
-      return query;
-    }
-  } else {
-    camera_parameters.gain_boost = false;
-  }
-
-  if ((is_err = is_Gamma(cam_handle_, IS_GAMMA_CMD_GET, (void*) &camera_parameters.software_gamma,
-      sizeof(camera_parameters.software_gamma))) != IS_SUCCESS) {
-    RCLCPP_ERROR(
-      this->get_logger(),
-      "Failed to query software gamma value for [%s] (%s)",
-      node_parameters_.camera_name,
-      err2str(is_err)
-    );
-    return is_err;
-  }
-
-  if ((is_err = is_SetAutoParameter(cam_handle_,
-      IS_GET_ENABLE_AUTO_SENSOR_SHUTTER, &pval1, &pval2)) != IS_SUCCESS &&
-      (is_err = is_SetAutoParameter(cam_handle_,
-          IS_GET_ENABLE_AUTO_SHUTTER, &pval1, &pval2)) != IS_SUCCESS) {
-    RCLCPP_ERROR(
-      this->get_logger(),
-      "Failed to query auto shutter mode for [%s] (%s)",
-      node_parameters_.camera_name,
-      err2str(is_err)
-    );
-    return is_err;
-  }
-  camera_parameters.auto_exposure = (pval1 != 0);
-
-  if ((is_err = is_SetAutoParameter (cam_handle_, IS_GET_AUTO_REFERENCE,
-      &camera_parameters.auto_exposure_reference, 0)) != IS_SUCCESS) {
-    RCLCPP_ERROR(
-      this->get_logger(),
-      "Failed to query exposure reference value for [%s] (%s)",
-      node_parameters_.camera_name,
-      err2str(is_err)
-    );
-  }
-
-  if ((is_err = is_Exposure(cam_handle_, IS_EXPOSURE_CMD_GET_EXPOSURE,
-      &camera_parameters.exposure, sizeof(camera_parameters.exposure))) != IS_SUCCESS) {
-    RCLCPP_ERROR(
-      this->get_logger(),
-      "Failed to query exposure timing for [%s] (%s)",
-      node_parameters_.camera_name,
-      err2str(is_err)
-    );
-    return is_err;
-  }
-
-  if ((is_err = is_SetAutoParameter(cam_handle_,
-      IS_GET_ENABLE_AUTO_SENSOR_WHITEBALANCE, &pval1, &pval2)) != IS_SUCCESS &&
-      (is_err = is_SetAutoParameter(cam_handle_,
-          IS_GET_ENABLE_AUTO_WHITEBALANCE, &pval1, &pval2)) != IS_SUCCESS) {
-    RCLCPP_ERROR(
-      this->get_logger(),
-      "Failed to query auto white balance mode for [%s] (%s)",
-      node_parameters_.camera_name,
-      err2str(is_err)
-    );
-    return is_err;
-  }
-  camera_parameters.auto_white_balance = (pval1 != 0);
-
-  if ((is_err = is_SetAutoParameter(cam_handle_,
-      IS_GET_AUTO_WB_OFFSET, &pval1, &pval2)) != IS_SUCCESS) {
-    RCLCPP_ERROR(
-      this->get_logger(),
-      "Failed to query auto white balance red/blue channel offsets for [%s] (%s)",
-      node_parameters_.camera_name,
-      err2str(is_err)
-    );
-    return is_err;
-  }
-  camera_parameters.white_balance_red_offset = static_cast<int>(pval1);
-  camera_parameters.white_balance_blue_offset = static_cast<int>(pval2);
-
-  IO_FLASH_PARAMS currFlashParams;
-  if ((is_err = is_IO(cam_handle_, IS_IO_CMD_FLASH_GET_PARAMS,
-      (void*) &currFlashParams, sizeof(IO_FLASH_PARAMS))) != IS_SUCCESS) {
-    RCLCPP_ERROR(
-      this->get_logger(),
-      "Could not retrieve current flash parameter info for [%s] (%s)",
-      node_parameters_.camera_name,
-      err2str(is_err)
-    );
-    return is_err;
-  }
-  camera_parameters.flash_delay = currFlashParams.s32Delay;
-  camera_parameters.flash_duration = static_cast<int>(currFlashParams.u32Duration);
-
-  if ((is_err = is_SetAutoParameter(cam_handle_,
-      IS_GET_ENABLE_AUTO_SENSOR_FRAMERATE, &pval1, &pval2)) != IS_SUCCESS &&
-      (is_err = is_SetAutoParameter(cam_handle_,
-          IS_GET_ENABLE_AUTO_FRAMERATE, &pval1, &pval2)) != IS_SUCCESS) {
-    RCLCPP_ERROR(
-      this->get_logger(),
-      "Failed to query auto frame rate mode for [%s] (%s)",
-      node_parameters_.camera_name,
-      err2str(is_err)
-    );
-    return is_err;
-  }
-  camera_parameters.auto_frame_rate = (pval1 != 0);
-
-  if ((is_err = is_SetFrameRate(cam_handle_, IS_GET_FRAMERATE, &camera_parameters.frame_rate)) != IS_SUCCESS) {
-    RCLCPP_ERROR(
-      this->get_logger(), "Failed to query frame rate for [%s] (%s)",
-      node_parameters_.camera_name,
-      err2str(is_err)
-    );
-    return is_err;
-  }
-
-  UINT currPixelClock;
-  if ((is_err = is_PixelClock(cam_handle_, IS_PIXELCLOCK_CMD_GET,
-      (void*) &currPixelClock, sizeof(currPixelClock))) != IS_SUCCESS) {
-    RCLCPP_ERROR(
-      this->get_logger(),
-      "Failed to query pixel clock rate for [%s] (%s)",
-      node_parameters_.camera_name,
-      err2str(is_err)
-    );
-    return is_err;
-  }
-  camera_parameters.pixel_clock = static_cast<int>(currPixelClock);
-
-  int currROP = is_SetRopEffect(cam_handle_, IS_GET_ROP_EFFECT, 0, 0);
-  camera_parameters.flip_upd = ((currROP & IS_SET_ROP_MIRROR_UPDOWN) == IS_SET_ROP_MIRROR_UPDOWN);
-  camera_parameters.flip_lr = ((currROP & IS_SET_ROP_MIRROR_LEFTRIGHT) == IS_SET_ROP_MIRROR_LEFTRIGHT);
-
-  std::ostringstream ostream;
-  ostream << "Queried parameters from [" << node_parameters_.camera_name << "]" << std::endl;
-  ostream << camera_parameters.to_str();
-  RCLCPP_INFO(this->get_logger(), ostream.str());
-  return is_err;
 }
 
 void Node::handleTimeout() {

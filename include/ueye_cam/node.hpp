@@ -91,8 +91,10 @@ private:
   /********************************************
    * Parameters
    *******************************************/
-  void declareParameters(); /**< Declare parameters, types, descriptions. **/
-  void updateParameters(); /**< Manually update parameters with the latest values. **/
+  void declareROSNodeParameters(const NodeParameters& defaults); /**< Declare parameters, types, descriptions. **/
+  void declareROSCameraParameters(const CameraParameters& defaults); /**< Declare parameters, types, descriptions. **/
+  const NodeParameters fetchROSNodeParameters() const; /**< Fetch node parameters from the node **/
+  const CameraParameters fetchROSCameraParameters() const; /**< Fetch camera parameters from the node **/
   void reflectParameters(); /**< Reflect a subset of parameters back to the driver. **/
   void setupParameterEventHandling(); /**< Setup client/callback for handling dynamically reconfigurable parameters. **/
   bool onParameterEvent(const ParameterEventPtr event); /**< Dynamic parameter callback **/
@@ -106,7 +108,7 @@ private:
   /********************************************
    * Non-Parameter Initialisation
    *******************************************/
-  void setupCommunications();       /**< Setup ROS2 publishers, subscribers and services. **/
+  void setupROSCommunications();       /**< Setup ROS2 publishers, subscribers and services. **/
   void loadIntrinsicsFile();        /**< Loads the camera's intrinsic parameters. */
   bool saveIntrinsicsFile();        /**< Saves the camera's intrinsic parameters. */
   void setCamInfo(const SetCameraInfoRequestPtr request, SetCameraInfoResponsePtr response); /**< Callback for updating intrinsic parameters over a service and saves to file (via saveIntrinsicsFile()). **/
@@ -115,13 +117,6 @@ private:
   sensor_msgs::msg::Image ros_image_;
   sensor_msgs::msg::CameraInfo ros_cam_info_;
   rclcpp::Service<sensor_msgs::srv::SetCameraInfo>::SharedPtr set_cam_info_srv_;
-
-  /********************************************
-   * Camera Connection
-   *******************************************/
-  INT connectCam(); /**< Initializes the camera handle, loads UEye ini, refreshes params and starts the frame grabber thread. */
-  INT disconnectCam(); /**< Stops the frame grabber thread, closes the camera handle and releases local variables. */
-  INT syncToCamera();    /**< Configures the camera from the current parameterisation. **/
 
   /********************************************
    * Frame Grabbing
@@ -154,7 +149,6 @@ private:
   /********************************************
    * Debugging
    *******************************************/
-  INT queryCamera();  /**< Reads parameter values from currently selected camera. */
   void printConfiguration() const;  /**< Emit the current configuration on loggers (convenience method). **/
   void handleTimeout();  /**< Debug handle called when the underlying driver detects a timeout. **/
 

@@ -43,6 +43,7 @@
  ** Includes
  *****************************************************************************/
 
+#include <set>
 #include <string>
 
 /*****************************************************************************
@@ -56,6 +57,7 @@ namespace ueye_cam
 ** Interfaces
 *****************************************************************************/
 
+bool has_intersection(const std::set<std::string>& s1, const std::set<std::string>& s2);
 std::string sdk_version();
 std::string sdk_required_version();
 

@@ -32,21 +32,21 @@
 *******************************************************************************/
 
 #include <cstring>
+#include <iostream>
 
 #include "../../include/ueye_cam/camera_driver.hpp"
+#include "../../include/ueye_cam/utilities.hpp"
 
 using namespace std;
 
-// Locally defined simple error stream for debugging
-#include <iostream>
+
+
 #define ERROR_STREAM(message) std::cout << message << std::endl;
 // #define ERROR_STREAM(message)
 
 namespace ueye_cam {
 
 
-// Note that all of these default settings will be overwritten
-// by syncCamConfig() during connectCam()
 Driver::Driver(int cam_ID, string cam_name):
   cam_name_(cam_name),
   camera_parameters_(),
@@ -71,7 +71,7 @@ Driver::~Driver() {
 }
 
 
-INT Driver::connectCam(int new_cam_ID) {
+void Driver::connectCam(int new_cam_ID) {
   INT is_err = IS_SUCCESS;
   int numCameras;
 
@@ -84,12 +84,13 @@ INT Driver::connectCam(int new_cam_ID) {
   }
   // Query for number of connected cameras
   if ((is_err = is_GetNumberOfCameras(&numCameras)) != IS_SUCCESS) {
-    ERROR_STREAM("Failed query for number of connected UEye cameras (" << err2str(is_err) << ")");
-    return is_err;
+    ostringstream ostream;
+    ostream << "failed query for number of connected cameras [" << err2str(is_err) << "]";
+    throw std::runtime_error(ostream.str());
   } else if (numCameras < 1) {
-    ERROR_STREAM("No UEye cameras are connected\n");
-    ERROR_STREAM("Hint: make sure that the IDS camera daemon (/etc/init.d/ueyeusbdrc) is running\n");
-    return IS_NO_SUCCESS;
+    ostringstream ostream;
+    ostream << "no cameras discovered [hint: ensure daemon (/etc/init.d/ueyeusbdrc) is running]";
+    throw std::runtime_error(ostream.str());
   } // NOTE: previously checked if ID < numCameras, but turns out that ID can be arbitrary
 
   // Attempt to open camera handle, and handle case where camera requires a
@@ -107,62 +108,72 @@ INT Driver::connectCam(int new_cam_ID) {
     is_err = is_InitCamera(&cam_handle_, nullptr); // Will block for N seconds
   }
   if (is_err != IS_SUCCESS) {
-    ERROR_STREAM("Could not open UEye camera ID " << cam_id_ <<
-      " (" << err2str(is_err) << ")");
-    return is_err;
+    ostringstream ostream;
+    ostream << "could not init the camera handle [" << err2str(is_err) << "]";;
+    throw std::runtime_error(ostream.str());
   }
 
   // Set display mode to Device Independent Bitmap (DIB)
   is_err = is_SetDisplayMode(cam_handle_, IS_SET_DM_DIB);
   if (is_err != IS_SUCCESS) {
-    ERROR_STREAM("UEye camera ID " << cam_id_ <<
-      " does not support Device Independent Bitmap mode;" <<
-      " driver wrapper not compatible with OpenGL/DirectX modes (" << err2str(is_err) << ")");
-    return is_err;
+    ostringstream ostream;
+    ostream << "failed to initialise Device Independent Bitmap mode [error:" << err2str(is_err) << "]\n";
+    ostream << "(note also, this driver is not compatible with OpenGL/DirectX modes)";
+    throw std::runtime_error(ostream.str());
   }
 
   // Fetch sensor parameters
   is_err = is_GetSensorInfo(cam_handle_, &cam_sensor_info_);
   if (is_err != IS_SUCCESS) {
-    ERROR_STREAM("Could not poll sensor information for [" << cam_name_ << "] (" << err2str(is_err) << ")");
-    return is_err;
+    ostringstream ostream;
+    ostream << "could not poll sensor information [" << err2str(is_err) << "]\n";
+    throw std::runtime_error(ostream.str());
   }
 
-  // Validate camera's configuration to ensure compatibility with driver wrapper
-  // (note that this function also initializes the internal frame buffer)
-  if ((is_err = syncCamConfig()) != IS_SUCCESS) return is_err;
-
-  //DEBUG_STREAM("Connected to [" + cam_name_ + "]");
-
-  return is_err;
+  // Pull back the configuration from the camera, update internal state and reallocate buffers.
+  try {
+    syncCamConfig();
+  } catch (const std::runtime_error& e) {
+    ostringstream ostream;
+    ostream << "failed to synchronize after connecting to the camera";
+    std::throw_with_nested(std::runtime_error(ostream.str()));
+  }
 }
 
-
-INT Driver::disconnectCam() {
-  INT is_err = IS_SUCCESS;
+void Driver::disconnectCam() {
+  INT is_free_image_memory_error = IS_SUCCESS;
+  INT is_exit_camera_error = IS_SUCCESS;
 
   if (isConnected()) {
     setStandbyMode();
 
     // Release existing camera buffers
     if (cam_buffer_ != nullptr) {
-      is_err = is_FreeImageMem(cam_handle_, cam_buffer_, cam_buffer_id_);
+      // TODO: emit a warning if this fails?
+      is_free_image_memory_error = is_FreeImageMem(cam_handle_, cam_buffer_, cam_buffer_id_);
     }
     cam_buffer_ = nullptr;
 
     // Release camera handle
-    is_err = is_ExitCamera(cam_handle_);
+    is_exit_camera_error = is_ExitCamera(cam_handle_);
     cam_handle_ = HIDS(0);
 
-    //DEBUG_STREAM("Disconnected from [" + cam_name_ + "]");
+    if (is_free_image_memory_error != IS_SUCCESS) {
+      ostringstream ostream;
+      ostream << "failed to free image memory on the camera [" << cam_id_ << "][" << err2str(is_free_image_memory_error) << "]";;
+      throw std::runtime_error(ostream.str());
+    }
+    if (is_exit_camera_error != IS_SUCCESS) {
+      ostringstream ostream;
+      ostream << "failed to cleanly exit camera [" << cam_id_ << "][" << err2str(is_exit_camera_error) << "]";;
+      throw std::runtime_error(ostream.str());
+    }
   }
-
-  return is_err;
 }
 
 
-INT Driver::loadCamConfig(string filename, bool ignore_load_failure) {
-  if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
+void Driver::loadCamConfig(string filename) {
+  if (!isConnected()) { throw std::runtime_error("camera not connected"); };
 
   INT is_err = IS_SUCCESS;
 
@@ -170,23 +181,398 @@ INT Driver::loadCamConfig(string filename, bool ignore_load_failure) {
   const wstring filenameU(filename.begin(), filename.end());
   if ((is_err = is_ParameterSet(cam_handle_, IS_PARAMETERSET_CMD_LOAD_FILE,
       (void*) filenameU.c_str(), 0)) != IS_SUCCESS) {
-    //WARN_STREAM("Could not load [" << cam_name_
-    //  << "]'s sensor parameters file " << filename << " (" << err2str(is_err) << ")");
-    if (ignore_load_failure) is_err = IS_SUCCESS;
-    return is_err;
+    ostringstream ostream;
+    ostream << "failed to load IDS camera configuration on the camera [" << filename << "][" << err2str(is_err) << "]";
+    throw std::runtime_error(ostream.str());
   } else {
-    // After loading configuration settings, need to re-ensure that camera's
-    // current configuration is supported by this driver wrapper
-    // (note that this function also initializes the internal frame buffer)
-    if ((is_err = syncCamConfig()) != IS_SUCCESS) return is_err;
-
-    //DEBUG_STREAM("Successfully loaded sensor parameter file for [" << cam_name_ <<
-    //  "]: " << filename);
+    // Pull back the configuration from the camera, update internal state and reallocate buffers.
+    try {
+      syncCamConfig();
+    } catch (const std::runtime_error& e) {
+      ostringstream ostream;
+      ostream << "failed to synchronize after loading camera configuration [" << filename << "]";
+      std::throw_with_nested(std::runtime_error(ostream.str()));
+    }
   }
-
-  return is_err;
 }
 
+void Driver::syncCamConfig() {
+
+  if (!isConnected()) { throw std::runtime_error("camera not connected"); };
+
+  // Retrieve configuration from the camera
+  auto throw_fetch_error = [](const std::string& name, const INT& error) {
+    ostringstream ostream;
+    ostream << "failed to retrieve parameter from the camera [param: "<< name << "][error: " << err2str(error) << "]";
+    throw std::runtime_error(ostream.str());
+  };
+
+  CameraParameters parameters;
+  INT is_err = IS_SUCCESS;
+  int query;
+  double pval1, pval2;
+  IS_RECT cam_aoi;
+
+  // Quite a few api have legacy/new access methods, test them both.
+
+  // TODO: Technically, these are width and height for the
+  // sensor's Area of Interest, and not of the image.
+  if ((is_err = is_AOI(cam_handle_, IS_AOI_IMAGE_GET_AOI,
+      (void*) &cam_aoi, sizeof(cam_aoi))) != IS_SUCCESS) {
+    ostringstream ostream;
+    ostream << "could not retrieve the area of interest (AOI) information from the camera [" << err2str(is_err) << "]";
+    throw std::runtime_error(ostream.str());
+  } else {
+    parameters.image_width =  cam_aoi.s32Width;
+    parameters.image_height = cam_aoi.s32Height;
+  }
+  // TODO: 1 ideally want to ensure that aoi top-left does correspond to centering
+  parameters.image_left = cam_aoi.s32X;
+  parameters.image_top = cam_aoi.s32Y;
+
+  INT color_mode = is_SetColorMode(cam_handle_, IS_GET_COLOR_MODE);
+  if (!isSupportedColorMode(color_mode)) {
+    ostringstream ostream;
+    ostream << "retrieved color_mode is not supported by this driver [" << color_mode << "]";
+    throw std::runtime_error(ostream.str());
+  } else {
+    parameters.color_mode = colormode2name(color_mode);
+  }
+
+  const INT current_subsampling_rate = is_SetSubSampling(cam_handle_, IS_GET_SUBSAMPLING);
+  switch (current_subsampling_rate) {
+    case (IS_SUBSAMPLING_DISABLE): parameters.subsampling = 1; break;
+    case (IS_SUBSAMPLING_2X): parameters.subsampling = 2; break;
+    case (IS_SUBSAMPLING_4X): parameters.subsampling = 4; break;
+    case (IS_SUBSAMPLING_8X): parameters.subsampling = 8; break;
+    case (IS_SUBSAMPLING_16X): parameters.subsampling = 16; break;
+    default:
+      ostringstream ostream;
+      ostream << "retrieved subsampling rate is not supported by this driver [" << current_subsampling_rate << "]";
+      throw std::runtime_error(ostream.str());
+  }
+
+  const INT current_binning_rate = is_SetBinning(cam_handle_, IS_GET_BINNING);
+  switch (current_binning_rate) {
+    case (IS_BINNING_DISABLE): parameters.binning = 1; break;
+    case (IS_BINNING_2X): parameters.binning = 2; break;
+    case (IS_BINNING_4X): parameters.binning = 4; break;
+    case (IS_BINNING_8X): parameters.binning = 8; break;
+    case (IS_BINNING_16X): parameters.binning = 16; break;
+    default:
+      ostringstream ostream;
+      ostream << "retrieved binning rate is not supported by this driver [" << current_binning_rate << "]";
+      throw std::runtime_error(ostream.str());
+  }
+
+  SENSORSCALERINFO sensorScalerInfo;
+  is_err = is_GetSensorScalerInfo(cam_handle_, &sensorScalerInfo, sizeof(sensorScalerInfo));
+  if (is_err == IS_NOT_SUPPORTED) {
+    parameters.sensor_scaling = 1.0;
+  } else if (is_err != IS_SUCCESS) {
+    throw_fetch_error("sensor_scaling", is_err);
+  } else {
+    parameters.sensor_scaling = sensorScalerInfo.dblCurrFactor;
+  }
+
+  if ((is_err = is_SetAutoParameter(cam_handle_,
+      IS_GET_ENABLE_AUTO_SENSOR_GAIN, &pval1, &pval2)) != IS_SUCCESS &&
+      (is_err = is_SetAutoParameter(cam_handle_,
+          IS_GET_ENABLE_AUTO_GAIN, &pval1, &pval2)) != IS_SUCCESS) {
+    throw_fetch_error("auto_gain", is_err);
+  } else {
+    parameters.auto_gain = (pval1 != 0);
+  }
+
+  parameters.master_gain = is_SetHardwareGain(cam_handle_, IS_GET_MASTER_GAIN,
+      IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
+  parameters.red_gain = is_SetHardwareGain(cam_handle_, IS_GET_RED_GAIN,
+      IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
+  parameters.green_gain = is_SetHardwareGain(cam_handle_, IS_GET_GREEN_GAIN,
+      IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
+  parameters.blue_gain = is_SetHardwareGain(cam_handle_, IS_GET_BLUE_GAIN,
+      IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER, IS_IGNORE_PARAMETER);
+
+  query = is_SetGainBoost(cam_handle_, IS_GET_SUPPORTED_GAINBOOST);
+  if(query == IS_SET_GAINBOOST_ON) {
+    query = is_SetGainBoost(cam_handle_, IS_GET_GAINBOOST);
+    if (query == IS_SET_GAINBOOST_ON) {
+      parameters.gain_boost = true;
+    } else if (query == IS_SET_GAINBOOST_OFF) {
+      parameters.gain_boost = false;
+    } else {
+      // query fail / shouldn't get here
+      throw std::runtime_error("received unknown query response from is_SetGainBoost, please update the driver");
+    }
+  } else {
+    parameters.gain_boost = false; // no gain_boost mode available (TODO: expose this better)
+  }
+
+  if ((is_err = is_Gamma(cam_handle_, IS_GAMMA_CMD_GET, (void*) &parameters.software_gamma,
+      sizeof(parameters.software_gamma))) != IS_SUCCESS) {
+    throw_fetch_error("software_gamma", is_err);
+  }
+
+  if ((is_err = is_SetAutoParameter(cam_handle_,
+      IS_GET_ENABLE_AUTO_SENSOR_SHUTTER, &pval1, &pval2)) != IS_SUCCESS &&
+      (is_err = is_SetAutoParameter(cam_handle_,
+          IS_GET_ENABLE_AUTO_SHUTTER, &pval1, &pval2)) != IS_SUCCESS) {
+    throw_fetch_error("auto_exposure", is_err);
+  } else {
+    parameters.auto_exposure = (pval1 != 0);
+  }
+
+  if ((is_err = is_SetAutoParameter (cam_handle_, IS_GET_AUTO_REFERENCE,
+      &parameters.auto_exposure_reference, 0)) != IS_SUCCESS) {
+    throw_fetch_error("auto_exposure_reference", is_err);
+  }
+
+  if ((is_err = is_Exposure(cam_handle_, IS_EXPOSURE_CMD_GET_EXPOSURE,
+      &parameters.exposure, sizeof(parameters.exposure))) != IS_SUCCESS) {
+    throw_fetch_error("exposure", is_err);
+  }
+
+  if ((is_err = is_SetAutoParameter(cam_handle_,
+      IS_GET_ENABLE_AUTO_SENSOR_WHITEBALANCE, &pval1, &pval2)) != IS_SUCCESS &&
+      (is_err = is_SetAutoParameter(cam_handle_,
+          IS_GET_ENABLE_AUTO_WHITEBALANCE, &pval1, &pval2)) != IS_SUCCESS) {
+    throw_fetch_error("auto_white_balance", is_err);
+  } else {
+    parameters.auto_white_balance = (pval1 != 0);
+  }
+
+  if ((is_err = is_SetAutoParameter(cam_handle_,
+      IS_GET_AUTO_WB_OFFSET, &pval1, &pval2)) != IS_SUCCESS) {
+    throw_fetch_error("auto_white_balance_offset", is_err);
+  } else {
+    parameters.white_balance_red_offset = static_cast<int>(pval1);
+    parameters.white_balance_blue_offset = static_cast<int>(pval2);
+  }
+
+  IO_FLASH_PARAMS currFlashParams;
+  if ((is_err = is_IO(cam_handle_, IS_IO_CMD_FLASH_GET_PARAMS,
+      (void*) &currFlashParams, sizeof(IO_FLASH_PARAMS))) != IS_SUCCESS) {
+    throw_fetch_error("flash_delay/duration", is_err);
+  } else {
+    parameters.flash_delay = currFlashParams.s32Delay;
+    parameters.flash_duration = static_cast<int>(currFlashParams.u32Duration);
+  }
+
+  // TODO: synchronise the following
+  // ext_trigger_mode
+  // trigger_rising_edge
+  // gpio1
+  // gpio2
+  // pwm_freq
+  // pwm_duty_cycle
+
+  if ((is_err = is_SetAutoParameter(cam_handle_,
+      IS_GET_ENABLE_AUTO_SENSOR_FRAMERATE, &pval1, &pval2)) != IS_SUCCESS &&
+      (is_err = is_SetAutoParameter(cam_handle_,
+          IS_GET_ENABLE_AUTO_FRAMERATE, &pval1, &pval2)) != IS_SUCCESS) {
+    throw_fetch_error("auto_frame_rate", is_err);
+  } else {
+    parameters.auto_frame_rate = (pval1 != 0);
+  }
+
+  if ((is_err = is_SetFrameRate(cam_handle_, IS_GET_FRAMERATE, &parameters.frame_rate)) != IS_SUCCESS) {
+    throw_fetch_error("frame_rate", is_err);
+  }
+
+  // output_rate
+
+  UINT currPixelClock;
+  if ((is_err = is_PixelClock(cam_handle_, IS_PIXELCLOCK_CMD_GET,
+      (void*) &currPixelClock, sizeof(currPixelClock))) != IS_SUCCESS) {
+    throw_fetch_error("pixel_clock", is_err);
+  } else {
+    parameters.pixel_clock = static_cast<int>(currPixelClock);
+  }
+
+  int currROP = is_SetRopEffect(cam_handle_, IS_GET_ROP_EFFECT, 0, 0);
+  parameters.flip_vertical = ((currROP & IS_SET_ROP_MIRROR_UPDOWN) == IS_SET_ROP_MIRROR_UPDOWN);
+  parameters.flip_horizontal = ((currROP & IS_SET_ROP_MIRROR_LEFTRIGHT) == IS_SET_ROP_MIRROR_LEFTRIGHT);
+
+  /****************************************
+   * Update driver state
+   ****************************************/
+  camera_parameters_ = parameters;
+  color_mode_ = name2colormode(parameters.color_mode);
+  bits_per_pixel_ = colormode2bpp(color_mode_);
+  cam_aoi_ = cam_aoi;
+
+  if ((is_err = reallocateCamBuffer()) != IS_SUCCESS) {
+    ostringstream ostream;
+    ostream << "failed to reallocate camera buffer [" << err2str(is_err) << "]";
+    throw std::runtime_error(ostream.str());
+  }
+}
+
+
+void Driver::setCamParams(
+    CameraParameters &parameters,
+    const std::set<std::string>& filter) {
+
+  // Check 1
+  if (!isConnected()) { throw std::runtime_error("camera not connected"); };
+
+  // Check 2
+  try {
+    parameters.validate();
+  } catch (const std::invalid_argument& e) {
+    std::ostringstream ostream;
+    ostream << "invalid parameter configuration\n" << e.what();
+    throw std::invalid_argument(ostream.str());
+  }
+
+  // Action
+  INT is_err = IS_SUCCESS;
+  #define noop(name, error) (void) 0    // Return errors if updates are critical, a noop otherwise
+  auto throw_invalid_argument = [](const std::string& name, const INT& error) {
+    ostringstream ostream;
+    ostream << "param: "<< name << ", error: " << error;
+    throw std::invalid_argument(ostream.str());
+  };
+  bool all = filter.empty(); // 0.7s - measured time to set all parameters on a fairly common network
+
+  if (all || filter.find("color_mode") != filter.end() ) {
+    if ((is_err = setColorMode(parameters.color_mode, false)) != IS_SUCCESS) { throw_invalid_argument("color_mode", is_err); }
+  }
+  if (all || has_intersection({"image_width", "image_height", "image_left", "image_top"}, filter)) {
+    if ((is_err = setResolution(
+        parameters.image_width, parameters.image_height,
+        parameters.image_left, parameters.image_top, false)) != IS_SUCCESS) {
+      throw_invalid_argument("image_width / image_height / image_left / image_top", is_err);
+    }
+  }
+  if (all || filter.find("subsampling") != filter.end() ) {
+    if ((is_err = setSubsampling(parameters.subsampling, false)) != IS_SUCCESS) { throw_invalid_argument("subsampling", is_err); }
+  }
+  if (all || filter.find("binning") != filter.end() ) {
+    if ((is_err = setBinning(parameters.binning, false)) != IS_SUCCESS) { throw_invalid_argument("binning", is_err); }
+  }
+  if (all || filter.find("sensor_scaling") != filter.end() ) {
+    if ((is_err = setSensorScaling(parameters.sensor_scaling, false)) != IS_SUCCESS) { throw_invalid_argument("sensor_scaling", is_err); }
+  }
+  if (all || has_intersection({"auto_gain", "master_gain", "red_gain", "green_gain", "blue_gain", "gain_boost"}, filter)) {
+    if ( !all && has_intersection({"master_gain", "red_gain", "green_gain", "blue_gain", "gain_boost"}, filter) ) {
+      if (parameters.auto_gain) {
+        throw std::invalid_argument("Reconfiguring gains has no effect when 'auto_gain' is true");
+      }
+    }
+    if ((is_err = setGain(
+        parameters.auto_gain,
+        parameters.master_gain,
+        parameters.red_gain,
+        parameters.green_gain,
+        parameters.blue_gain,
+        parameters.gain_boost
+    )) != IS_SUCCESS) { noop("auto_gain", is_err); }
+  }
+  if (all || filter.find("software_gamma") != filter.end() ) {
+    if ((is_err = setSoftwareGamma(parameters.software_gamma)) != IS_SUCCESS) { noop("software_gamma", is_err); }
+  }
+  if (all || has_intersection({"auto_exposure", "auto_exposure_reference", "exposure"}, filter)) {
+    if ((is_err = setExposure(
+        parameters.auto_exposure,
+        parameters.auto_exposure_reference,
+        parameters.exposure)) != IS_SUCCESS) { noop("auto_exposure/auto_exposure_reference/exposure", is_err); }
+  }
+  if (all || has_intersection({"auto_white_balance", "white_balance_red_offset", "white_balance_blue_offset"}, filter)) {
+    if ((is_err = setWhiteBalance(
+        parameters.auto_white_balance,
+        parameters.white_balance_red_offset,
+        parameters.white_balance_blue_offset)) != IS_SUCCESS) {
+      noop("auto_white_balance/white_balance_red_offset/white_balance_blue_offset", is_err);
+    }
+  }
+  if (all || has_intersection({"flash_delay", "flash_duration"}, filter)) {
+    // NOTE: need to copy flash parameters to local copies since
+    //       flash_delay / flash_duration is type int, and sizeof(int)
+    //       may not equal to sizeof(INT) / sizeof(UINT)
+    INT flash_delay = static_cast<INT>(parameters.flash_delay);
+    UINT flash_duration = static_cast<UINT>(parameters.flash_duration);
+    if ((is_err = setFlashParams(
+        flash_delay,
+        flash_duration)) != IS_SUCCESS) {
+      throw_invalid_argument("flash_delay/flash_duration", is_err);
+    }
+    // reflect the actually set values back
+    parameters.flash_delay = static_cast<int>(flash_delay);
+    parameters.flash_duration = static_cast<int>(flash_duration);
+  }
+  // if (filter.find("ext_trigger_mode") != filter.end() ) {
+    // nothing to be done - this is an indicator to be handled externally in a frame grabber loop
+  // }
+  if (all || filter.find("gpio1") != filter.end() ) {
+    if ((is_err = setGpioMode(
+        1,
+        parameters.gpio1,
+        parameters.pwm_freq,
+        parameters.pwm_duty_cycle)) != IS_SUCCESS) { noop("gpio1", is_err); }
+  }
+  if (all || filter.find("gpio2") != filter.end() ) {
+    if ((is_err = setGpioMode(
+        2,
+        parameters.gpio2,
+        parameters.pwm_freq,
+        parameters.pwm_duty_cycle)) != IS_SUCCESS) { noop("gpio2", is_err); }
+  }
+  // pwm params - case for 'all' is handled via gpio's
+  if (has_intersection({"pwm_freq", "pwm_duty_cycle"}, filter)) {
+    if ((filter.find("gpio1") == filter.end()) && parameters.gpio1 == GPIOMode::PWM_OUTPUT) {
+      if ((is_err = setGpioMode(
+          1,
+          parameters.gpio1,
+          parameters.pwm_freq,
+          parameters.pwm_duty_cycle)) != IS_SUCCESS) { noop("gpio1", is_err); }
+    }
+    if ((filter.find("gpio2") == filter.end()) && parameters.gpio2 == GPIOMode::PWM_OUTPUT) {
+      if ((is_err = setGpioMode(
+          2,
+          parameters.gpio2,
+          parameters.pwm_freq,
+          parameters.pwm_duty_cycle)) != IS_SUCCESS) { noop("gpio2", is_err); }
+    }
+  }
+  if (all || has_intersection({"auto_frame_rate", "frame_rate"}, filter)) {
+    if ((is_err = setFrameRate(
+        parameters.auto_frame_rate,
+        parameters.frame_rate)) != IS_SUCCESS) {
+      throw_invalid_argument("auto_frame_rate/frame_rate", is_err);
+    }
+  }
+  if (all || filter.find("pixel_clock") != filter.end() ) {
+    if ((is_err = setPixelClockRate(parameters.pixel_clock)) != IS_SUCCESS) { throw_invalid_argument("pixel_clock", is_err); }
+  }
+  if (all || filter.find("flip_vertical") != filter.end() ) {
+    if ((is_err = setMirrorUpsideDown(parameters.flip_vertical)) != IS_SUCCESS) { noop("flip_vertical", is_err); }
+  }
+  if (all || filter.find("flip_horizontal") != filter.end() ) {
+    if ((is_err = setMirrorLeftRight(parameters.flip_horizontal)) != IS_SUCCESS) { noop("flip_horizontal", is_err); }
+  }
+  #undef noop
+
+  /****************************************
+   * Update Driver State
+   ****************************************/
+  // Currently, internal state is updated on the fly, this includes variables such as
+  // bb_per_pixel, cam_aoi, color_mode_ and camera_parameters_
+
+  // TODO: The setXYZ methods often do modifications of the incoming variables - aim to
+  // eventually opt out of that approach in favour of a fail hard/fast with useful
+  // error messages approach (avoid surprises, deterministic launch). Would be worth
+  // checking on a diff(camera_parameters_, parameters) here and throwing an error if
+  // something got modified.
+
+  if ( all || has_intersection(filter, CameraParameters::ReallocateBufferSet)) {
+    if ((is_err = reallocateCamBuffer()) != IS_SUCCESS) {
+      ostringstream ostream;
+      ostream << "failed to reallocate camera buffer [" << err2str(is_err) << "]";
+      throw std::runtime_error(ostream.str());
+    }
+  }
+}
 
 INT Driver::setColorMode(string& mode, bool reallocate_buffer) {
   if (!isConnected()) return IS_INVALID_CAMERA_HANDLE;
@@ -197,31 +583,37 @@ INT Driver::setColorMode(string& mode, bool reallocate_buffer) {
   setStandbyMode();
 
   // Set to specified color mode
-  color_mode_ = name2colormode(mode);
-  if (!isSupportedColorMode(color_mode_)) {
+  INT color_mode = name2colormode(mode);
+  if (!isSupportedColorMode(color_mode)) {
     //WARN_STREAM("Could not set color mode of [" << cam_name_
     //    << "] to " << mode << " (not supported by this wrapper). "
     //    << "switching to default mode: mono8");
-    color_mode_ = IS_CM_MONO8;
+    color_mode = IS_CM_MONO8;
     mode = "mono8";
   }
-  if ((is_err = is_SetColorMode(cam_handle_, color_mode_)) != IS_SUCCESS) {
+  if ((is_err = is_SetColorMode(cam_handle_, color_mode)) != IS_SUCCESS) {
     //ERROR_STREAM("Could not set color mode of [" << cam_name_ <<
     //    "] to " << mode << " (" << err2str(is_err) << ": " << color_mode_ << " / '" << mode << "'). switching to default mode: mono8");
         
-    color_mode_ = IS_CM_MONO8;
+    color_mode = IS_CM_MONO8;
     mode = "mono8";
-    if ((is_err = is_SetColorMode(cam_handle_, color_mode_)) != IS_SUCCESS) {
+    if ((is_err = is_SetColorMode(cam_handle_, color_mode)) != IS_SUCCESS) {
       //ERROR_STREAM("Could not set color mode of [" << cam_name_ <<
       //    "] to " << mode << " (" << err2str(is_err) << ": " << color_mode_ << "/ " << mode << ")");
       return is_err;
     }
   }
-  bits_per_pixel_ = colormode2bpp(color_mode_);
+  // update driver state
+  bits_per_pixel_ = colormode2bpp(color_mode);
+  camera_parameters_.color_mode = mode;
+  color_mode_ = color_mode;
+  if (reallocate_buffer) {
+    is_err = reallocateCamBuffer();
+  }
 
   //DEBUG_STREAM("Updated color mode to " << mode << "for [" << cam_name_ << "]");
 
-  return (reallocate_buffer ? reallocateCamBuffer() : IS_SUCCESS);
+  return is_err;
 }
 
 
@@ -231,7 +623,13 @@ INT Driver::setResolution(INT& image_width, INT& image_height,
 
   INT is_err = IS_SUCCESS;
 
+  IS_RECT cam_aoi;
+
   // Validate arguments
+  // TODO: Move this validation to CameraParameters::validateResolution() and included it in
+  //       CameraParameters::validate().
+  // TODO: Don't perform fallback modifications to variables here. Throw warnings/exceptions
+  //       back to the user (i.e. fail hard and fast but also educate the user).
   CAP(image_width, 8, static_cast<INT>(cam_sensor_info_.nMaxWidth));
   CAP(image_height, 4, static_cast<INT>(cam_sensor_info_.nMaxHeight));
   if (image_left >= 0 && static_cast<int>(cam_sensor_info_.nMaxWidth) - image_width - image_left < 0) {
@@ -249,33 +647,42 @@ INT Driver::setResolution(INT& image_width, INT& image_height,
     //    cam_sensor_info_.nMaxHeight << " for [" << cam_name_ << "]");
     image_top = -1;
   }
-  cam_aoi_.s32X = (image_left < 0) ?
+  cam_aoi.s32X = (image_left < 0) ?
       (cam_sensor_info_.nMaxWidth - static_cast<unsigned int>(image_width)) / 2 : image_left;
-  cam_aoi_.s32Y = (image_top < 0) ?
+  cam_aoi.s32Y = (image_top < 0) ?
       (cam_sensor_info_.nMaxHeight - static_cast<unsigned int>(image_height)) / 2 : image_top;
-  cam_aoi_.s32Width = image_width;
-  cam_aoi_.s32Height = image_height;
+  cam_aoi.s32Width = image_width;
+  cam_aoi.s32Height = image_height;
 
   const double s = camera_parameters_.binning*camera_parameters_.subsampling*camera_parameters_.sensor_scaling;
-  cam_aoi_.s32X /= s;
-  cam_aoi_.s32Y /= s;
-  cam_aoi_.s32Width /= s;
-  cam_aoi_.s32Height /= s;
+  cam_aoi.s32X /= s;
+  cam_aoi.s32Y /= s;
+  cam_aoi.s32Width /= s;
+  cam_aoi.s32Height /= s;
 
-  if ((is_err = is_AOI(cam_handle_, IS_AOI_IMAGE_SET_AOI, &cam_aoi_, sizeof(cam_aoi_))) != IS_SUCCESS) {
+  if ((is_err = is_AOI(cam_handle_, IS_AOI_IMAGE_SET_AOI, &cam_aoi, sizeof(cam_aoi))) != IS_SUCCESS) {
     //ERROR_STREAM("Failed to set Area Of Interest (AOI) to " <<
     //  image_width << " x " << image_height <<
-    //  " with top-left corner at (" << cam_aoi_.s32X << ", " << cam_aoi_.s32Y <<
+    //  " with top-left corner at (" << cam_aoi.s32X << ", " << cam_aoi.s32Y <<
     //  ") for [" << cam_name_ << "]" );
     return is_err;
   }
 
   //DEBUG_STREAM("Updated Area Of Interest (AOI) to " <<
   //  image_width << " x " << image_height <<
-  //  " with top-left corner at (" << cam_aoi_.s32X << ", " << cam_aoi_.s32Y <<
+  //  " with top-left corner at (" << cam_aoi.s32X << ", " << cam_aoi.s32Y <<
   //  ") for [" << cam_name_ << "]");
 
-  return (reallocate_buffer ? reallocateCamBuffer() : IS_SUCCESS);
+  // Update driver state
+  cam_aoi_ = cam_aoi;
+  camera_parameters_.image_width = image_width;
+  camera_parameters_.image_height = image_height;
+  camera_parameters_.image_left = image_left;
+  camera_parameters_.image_top = image_top;
+  if (reallocate_buffer) {
+    is_err = reallocateCamBuffer();
+  }
+  return is_err;
 }
 
 
@@ -345,6 +752,7 @@ INT Driver::setSubsampling(unsigned int& rate, bool reallocate_buffer) {
 
   //DEBUG_STREAM("Updated subsampling rate to " << rate << "X for [" << cam_name_ << "]");
 
+  // update driver state
   camera_parameters_.subsampling = rate;
 
   return (reallocate_buffer ? reallocateCamBuffer() : IS_SUCCESS);
@@ -417,6 +825,7 @@ INT Driver::setBinning(unsigned int& rate, bool reallocate_buffer) {
 
   //DEBUG_STREAM("Updated binning rate to " << rate << "X for [" << cam_name_ << "]");
 
+  // update driver state
   camera_parameters_.binning = static_cast<unsigned int>(rate);
 
   return (reallocate_buffer ? reallocateCamBuffer() : IS_SUCCESS);
@@ -468,6 +877,7 @@ INT Driver::setSensorScaling(double& rate, bool reallocate_buffer) {
 
   //DEBUG_STREAM("Updated internal image scaling rate to " << rate << "X for [" << cam_name_ << "]");
 
+  // update driver state
   camera_parameters_.sensor_scaling = rate;
 
   return (reallocate_buffer ? reallocateCamBuffer() : IS_SUCCESS);
@@ -543,6 +953,12 @@ INT Driver::setGain(bool& auto_gain, INT& master_gain_prc, INT& red_gain_prc,
         "\n  gain boost: " << gain_boost);
   }
   */
+  // update driver state
+  camera_parameters_.auto_gain = auto_gain;
+  camera_parameters_.master_gain = master_gain_prc;
+  camera_parameters_.red_gain = red_gain_prc;
+  camera_parameters_.green_gain = green_gain_prc;
+  camera_parameters_.blue_gain = blue_gain_prc;
 
   return is_err;
 }
@@ -553,11 +969,12 @@ INT Driver::setSoftwareGamma(INT& software_gamma) {
 
   INT is_err = IS_SUCCESS;
 
+  INT color_mode = name2colormode(camera_parameters_.color_mode);
   // According to ids this is only possible when the color mode is debayered by the ids driver 
-  if ((color_mode_ == IS_CM_SENSOR_RAW8)  ||
-      (color_mode_ == IS_CM_SENSOR_RAW10) ||
-      (color_mode_ == IS_CM_SENSOR_RAW12) ||
-      (color_mode_ == IS_CM_SENSOR_RAW16)) {
+  if ((color_mode == IS_CM_SENSOR_RAW8)  ||
+      (color_mode == IS_CM_SENSOR_RAW10) ||
+      (color_mode == IS_CM_SENSOR_RAW12) ||
+      (color_mode == IS_CM_SENSOR_RAW16)) {
     //WARN_STREAM("Software gamma only possible when the color mode is debayered, " <<
     //  "could not set software gamma for [" << cam_name_ << "]"); 
     return IS_NO_SUCCESS;    
@@ -569,6 +986,8 @@ INT Driver::setSoftwareGamma(INT& software_gamma) {
     //  "] (" << err2str(is_err) << ")");       
   }  
 
+  // update driver state
+  camera_parameters_.software_gamma = software_gamma;
   return is_err;
 }
 
@@ -623,6 +1042,11 @@ INT Driver::setExposure(bool& auto_exposure, double& auto_exposure_reference, do
   //DEBUG_STREAM("Updated exposure: " << ((auto_exposure) ? "auto" : to_string(exposure_ms)) <<
   //    " ms for [" << cam_name_ << "]");
 
+  // update driver state
+  camera_parameters_.auto_exposure = auto_exposure;
+  camera_parameters_.auto_exposure_reference = auto_exposure_reference;
+  camera_parameters_.exposure = exposure_ms;
+
   return is_err;
 }
 
@@ -665,6 +1089,11 @@ INT Driver::setWhiteBalance(bool& auto_white_balance, INT& red_offset,
     "\n  red offset: " << red_offset <<
     "\n  blue offset: " << blue_offset);
   */
+
+  // update driver state
+  camera_parameters_.auto_white_balance = auto_white_balance;
+  camera_parameters_.white_balance_red_offset = red_offset;
+  camera_parameters_.white_balance_blue_offset = blue_offset;
 
   return is_err;
 }
@@ -722,6 +1151,10 @@ INT Driver::setFrameRate(bool& auto_frame_rate, double& frame_rate_hz) {
   //DEBUG_STREAM("Updated frame rate for [" << cam_name_ << "]: " <<
   //  ((auto_frame_rate) ? "auto" : to_string(frame_rate_hz)) << " Hz");
 
+  // update driver state
+  camera_parameters_.auto_frame_rate = auto_frame_rate;
+  camera_parameters_.frame_rate = frame_rate_hz;
+
   return is_err;
 }
 
@@ -769,6 +1202,9 @@ INT Driver::setPixelClockRate(INT& clock_rate_mhz) {
 
   //DEBUG_STREAM("Updated pixel clock for [" << cam_name_ << "]: " << clock_rate_mhz << " MHz");
 
+  // update driver state
+  camera_parameters_.pixel_clock = clock_rate_mhz;
+
   return IS_SUCCESS;
 }
 
@@ -807,6 +1243,10 @@ INT Driver::setFlashParams(INT& delay_us, UINT& duration_us) {
     //  "] (" << err2str(is_err) << ")");
     return is_err;
   }
+
+  // update driver state
+  camera_parameters_.flash_delay = delay_us;
+  camera_parameters_.flash_duration = duration_us;
 
   return is_err;
 }
@@ -852,6 +1292,14 @@ INT Driver::setGpioMode(const int& gpio, int& mode, double& pwm_freq, double& pw
       //" % and got error code:  " << is_err);   
     }  
   }
+  // update driver state
+  if ( gpio == 1 ) {
+    camera_parameters_.gpio1 = mode;
+  } else if ( gpio == 2 ) {
+    camera_parameters_.gpio2 = mode;
+  }
+  camera_parameters_.pwm_freq = pwm_freq;
+  camera_parameters_.pwm_duty_cycle = pwm_duty_cycle;
 
   return is_err;
 }
@@ -896,6 +1344,9 @@ INT Driver::setFreeRunMode() {
     //DEBUG_STREAM("Started live video mode for [" << cam_name_ << "]");
   }
 
+  // update driver state - confirm?
+  camera_parameters_.ext_trigger_mode = false;
+
   return is_err;
 }
 
@@ -936,6 +1387,10 @@ INT Driver::setExtTriggerMode(bool trigger_rising_edge) {
     //  cam_name_ << "]");
   }
 
+  // update driver state
+  camera_parameters_.ext_trigger_mode = true;
+  camera_parameters_.trigger_rising_edge = trigger_rising_edge;
+
   return is_err;
 }
 
@@ -949,6 +1404,9 @@ INT Driver::setMirrorUpsideDown(bool flip_horizontal){
   else
      is_err = is_SetRopEffect(cam_handle_,IS_SET_ROP_MIRROR_UPDOWN,0,0);
 
+  // update driver state
+  camera_parameters_.flip_horizontal = flip_horizontal;
+
   return is_err;
 }
 
@@ -961,6 +1419,9 @@ INT Driver::setMirrorLeftRight(bool flip_vertical){
      is_err = is_SetRopEffect(cam_handle_,IS_SET_ROP_MIRROR_LEFTRIGHT,1,0);
   else
      is_err = is_SetRopEffect(cam_handle_,IS_SET_ROP_MIRROR_LEFTRIGHT,0,0);
+
+  // update driver state
+  camera_parameters_.flip_vertical = flip_vertical;
 
   return is_err;
 }
@@ -1055,108 +1516,7 @@ const char* Driver::processNextFrame(UINT timeout_ms) {
   return cam_buffer_;
 }
 
-// DJS: Use exceptions here - pull out the error strings via the exceptions.
-INT Driver::syncCamConfig(string dft_mode_str) {
-  INT is_err = IS_SUCCESS;
-
-  // Synchronize resolution, color mode, bits per pixel settings
-  if ((is_err = is_AOI(cam_handle_, IS_AOI_IMAGE_GET_AOI,
-      (void*) &cam_aoi_, sizeof(cam_aoi_))) != IS_SUCCESS) {
-    //ERROR_STREAM("Could not retrieve Area Of Interest (AOI) information from [" <<
-    //  cam_name_ << "] (" << err2str(is_err) << ")");
-    return is_err;
-  }
-  color_mode_ = is_SetColorMode(cam_handle_, IS_GET_COLOR_MODE);
-  if (!isSupportedColorMode(color_mode_)) {
-    //WARN_STREAM("Current color mode (IDS format: " << colormode2str(color_mode_)
-    //    << ") for [" << cam_name_ << "] is not supported by this wrapper; "
-        //<< "supported modes: {mono8 | mono10 | mono12 | mono16 | bayer_rggb8 | rgb8 | bgr8 | rgb10 | bgr10 | rgb10u | bgr10u | rgb12u | bgr12u}; "
-    //    << "switching to default mode: " << dft_mode_str);
-    if ((is_err = setColorMode(dft_mode_str, false)) != IS_SUCCESS) return is_err;
-    // reallocate_buffer == false, since this fn will force-re-allocate anyways
-  }
-  bits_per_pixel_ = colormode2bpp(color_mode_);
-
-  // Synchronize sensor scaling rate setting
-  SENSORSCALERINFO sensorScalerInfo;
-  is_err = is_GetSensorScalerInfo(cam_handle_, &sensorScalerInfo, sizeof(sensorScalerInfo));
-  if (is_err == IS_NOT_SUPPORTED) {
-    camera_parameters_.sensor_scaling = 1.0;
-  } else if (is_err != IS_SUCCESS) {
-    //ERROR_STREAM("Could not obtain supported internal image scaling information for [" <<
-    //  cam_name_ << "] (" << err2str(is_err) << ")");
-    return is_err;
-  } else {
-    camera_parameters_.sensor_scaling = sensorScalerInfo.dblCurrFactor;
-  }
-
-  // Synchronize subsampling rate setting
-  const INT currSubsamplingRate = is_SetSubSampling(cam_handle_, IS_GET_SUBSAMPLING);
-  switch (currSubsamplingRate) {
-    case (IS_SUBSAMPLING_DISABLE): camera_parameters_.subsampling = 1; break;
-    case (IS_SUBSAMPLING_2X): camera_parameters_.subsampling = 2; break;
-    case (IS_SUBSAMPLING_4X): camera_parameters_.subsampling = 4; break;
-    case (IS_SUBSAMPLING_8X): camera_parameters_.subsampling = 8; break;
-    case (IS_SUBSAMPLING_16X): camera_parameters_.subsampling = 16; break;
-    default:
-      //WARN_STREAM("Current sampling rate (IDS setting: " << currSubsamplingRate
-      //    << ") for [" << cam_name_ << "] is not supported by this wrapper; resetting to 1X");
-      if ((is_err = is_SetSubSampling(cam_handle_, IS_SUBSAMPLING_DISABLE)) != IS_SUCCESS) {
-      //  ERROR_STREAM("Could not set subsampling rate for [" << cam_name_
-      //      << "] to 1X (" << err2str(is_err) << ")");
-        return is_err;
-      }
-      camera_parameters_.subsampling = 1; break;
-  }
-
-  // Synchronize binning rate setting
-  const INT currBinningRate = is_SetBinning(cam_handle_, IS_GET_BINNING);
-  switch (currBinningRate) {
-    case (IS_BINNING_DISABLE): camera_parameters_.binning = 1; break;
-    case (IS_BINNING_2X): camera_parameters_.binning = 2; break;
-    case (IS_BINNING_4X): camera_parameters_.binning = 4; break;
-    case (IS_BINNING_8X): camera_parameters_.binning = 8; break;
-    case (IS_BINNING_16X): camera_parameters_.binning = 16; break;
-    default:
-      //WARN_STREAM("Current binning rate (IDS setting: " << currBinningRate
-      //    << ") for [" << cam_name_ << "] is not supported by this wrapper; resetting to 1X");
-      if ((is_err = is_SetBinning(cam_handle_, IS_BINNING_DISABLE)) != IS_SUCCESS) {
-      //  ERROR_STREAM("Could not set binning rate for [" << cam_name_
-      //      << "] to 1X (" << err2str(is_err) << ")");
-        return is_err;
-      }
-      camera_parameters_.binning = 1; break;
-  }
-
-  // Copy internal settings to parameters
-  // DJS: This perhaps should not be necessary. To be predictable and consistent,
-  //      parameterisation should flow in one direction only. If a user configures
-  //      the image width, it shouldn't cause surprise by changing internally.
-  camera_parameters_.image_width = cam_aoi_.s32Width;   // Technically, these are width and height for the
-  camera_parameters_.image_height = cam_aoi_.s32Height; // sensor's Area of Interest, and not of the image
-  if (camera_parameters_.image_left >= 0) camera_parameters_.image_left = cam_aoi_.s32X; // TODO: 1 ideally want to ensure that aoi top-left does correspond to centering
-  if (camera_parameters_.image_top >= 0) camera_parameters_.image_top = cam_aoi_.s32Y;
-
-  // Report synchronized settings
-  /*
-  DEBUG_STREAM("Synchronized configuration of [" << cam_name_ <<
-    "] and ensured compatibility with driver wrapper:" <<
-    "\n  AOI width: " << cam_aoi_.s32Width <<
-    "\n  AOI height: " << cam_aoi_.s32Height <<
-    "\n  AOI top-left X: " << cam_aoi_.s32X <<
-    "\n  AOI top-left Y: " << cam_aoi_.s32Y <<
-    "\n  IDS color mode: " << colormode2str(color_mode_) <<
-    "\n  bits per pixel: " << bits_per_pixel_ <<
-    "\n  sensor scaling rate: " << camera_parameters_.sensor_scaling <<
-    "\n  subsampling rate: " << camera_parameters_.subsampling <<
-    "\n  binning rate: " << camera_parameters_.binning);
-  */
-
-  // Force (re-)allocate internal frame buffer
-  return reallocateCamBuffer();
-}
-
-
+// TODO: switch from error streams to throwing useful runtime_error exceptions
 INT Driver::reallocateCamBuffer() {
   INT is_err = IS_SUCCESS;
 
@@ -1193,8 +1553,6 @@ INT Driver::reallocateCamBuffer() {
   }
 
   // Synchronize internal settings for buffer step size and overall buffer size
-  // NOTE: assume that sensor_scaling_rate, subsampling_rate, and camera_parameters_.binning
-  //       have all been previously validated and synchronized by syncCamConfig()
   if ((is_err = is_GetImageMemPitch(cam_handle_, &cam_buffer_pitch_)) != IS_SUCCESS) {
     //ERROR_STREAM("Failed to query buffer step size / pitch / stride for [" <<
     //  cam_name_ << "] (" << err2str(is_err) << ")");

@@ -38,6 +38,8 @@
 #include <tclap/CmdLine.h>
 #include <tclap/SwitchArg.h>
 
+#include <algorithm>
+#include <set>
 
 int main(int argc, char** argv) {
 

@@ -93,16 +93,16 @@ public:
    *
    * \param new_cam_ID If set to -1, then uses existing camera ID.
    *
-   * \return IS_SUCCESS if successful, error flag otherwise (see err2str).
+   * @throw runtime_error if connection fails
    */
-  virtual INT connectCam(int new_cam_ID = -1);
+  virtual void connectCam(int new_cam_ID = -1);
 
   /**
    * Terminates and releases the UEye camera handle.
    *
-   * \return IS_SUCCESS if successful, error flag otherwise (see err2str).
+   * @throw runtime_error if disconnection fails
    */
-  virtual INT disconnectCam();
+  virtual void disconnectCam();
 
   /**
    * Loads UEye camera parameter configuration INI file into current camera's settings.
@@ -110,14 +110,14 @@ public:
    * \param filename Relative or absolute path to UEye camera configuration file.
    * \param ignore_load_failure Return IS_SUCCESS even if failed to load INI file.
    *
-   * \return IS_SUCCESS if successful, error flag otherwise (see err2str).
+   * @throw runtime_error if an error occurs retrieving the information from the camera
    */
-  INT loadCamConfig(std::string filename, bool ignore_load_failure = true);
+  void loadCamConfig(std::string filename);
 
   /**
-   * Updates current camera handle's color mode and re-initializes
-   * internal frame buffer. This function will stop live capture
-   * automatically if necessary.
+   * Updates current camera handle's color mode, udpate driver
+   * state variables and re-initialize the internal frame buffer.
+   * This function will stop live capture automatically if necessary.
    *
    * \param mode Color mode string. Valid values: see UEyeCamDriver::COLOR_DICTIONARY
    *   Certain values may not be available for a given camera model.
@@ -148,7 +148,7 @@ public:
    * \return IS_SUCCESS if successful, error flag otherwise (see err2str).
    */
   INT setResolution(INT& image_width, INT& image_height, INT& image_left,
-      INT& image_top, bool reallocate_buffer = true);
+      INT& image_top, bool update_driver_state = true);
 
   /**
    * Updates current camera handle's subsampling rate.
@@ -393,39 +393,16 @@ public:
         (is_CaptureVideo(cam_handle_, IS_GET_LIVE) == TRUE));
   }
 
-  /**
-   * Stringifies UEye API error flag.
-   */
-  const static char* err2str(INT error);
+  const static char* err2str(INT error);              /**< Stringifies UEye API error flag. **/
+  const static char* colormode2str(INT mode);         /**< Stringifies UEye color mode flag. **/
+  const static std::string colormode2img_enc(INT mode); /**< Translates UEye color mode flag to stringified image encoding.**/
+  static INT colormode2bpp(INT mode);                 /**< Bits per pixel attribute of UEye color mode flag **/
+  static bool isSupportedColorMode(INT mode);         /**< Check if this driver supports the chosen UEye color mode **/
+  static INT name2colormode(const std::string& name); /**< Translates string name to UEye color mode flag. **/
+  const static std::string colormode2name(INT mode);  /**< Translates UEye color mode flag to string name. **/
 
   /**
-   * Stringifies UEye color mode flag.
-   */
-  const static char* colormode2str(INT mode);
-
-  /**
-   * translates UEye color mode flag to target ROS image encoding.
-   */
-  const static std::string colormode2img_enc(INT mode);
-
-  /**
-   *  bits per pixel attribute of UEye color mode flag
-   */
-  static INT colormode2bpp(INT mode);
-
-  /**
-   *  check if this driver supports the chosen UEye color mode
-   */
-  static bool isSupportedColorMode(INT mode);
-
-  /**
-   * translates string name to UEye color mode flag or the other way round.
-   */
-  static INT name2colormode(const std::string& name);
-  const static std::string colormode2name(INT mode);
-
-  /**
-   * returns the proper transfer function to translate and copy the camera format
+   * Returns the proper transfer function to translate and copy the camera format
    * pixel buffer either into an 8 or 16 bit unsigned int per channel format.
    */
   const static std::function<void*(void*, void*, size_t)> getUnpackCopyFunc(INT color_mode);
@@ -446,28 +423,48 @@ public:
 
 protected:
   /**
-   * Queries current camera handle's configuration (color mode,
-   * (area of interest / resolution, sensor scaling rate, subsampling rate,
-   * binning rate) to synchronize with this class's internal member values,
-   * then force-updates to default settings if current ones are not supported
-   * by this driver wrapper (ueye_cam), and finally force (re-)allocates
-   * internal frame buffer.
-   * 
+   * @brief Set parameters on the camera, individually or collectively.
+   *
+   * This calls on the variety of setXYZ methods to configure the
+   * camera. If it succeeds, the internal camera_parameters variable
+   * will be updated to retain a copy of the configured parameterisation.
+   *
+   * A std::runtime_error will be raised if the camera is not connected
+   * and a std::invalid_argument error will be raised if parameter
+   * setting fails.
+   *
+   * This is a programmatic alternative to loadCamConfig().
+   *
+   * If using this in conjunction with a frame grabbing loop in an
+   * application, be sure to stop & restart framegrabbing around calls
+   * to setCamParams() if necessary. Not all parameters require a
+   * stop/restart - refer to CameraParameters::RestartFrameGrabberSet
+   * for a list of parameters to pay attention to.
+   *
+   * @param parameters
+   * @param filter : if set, configure only these parameters
+   * @throws
+   *    std::runtime_error if the camera is not connected
+   *    std::invalid_argument if an individual parameter setting fails.
+   */
+  virtual void setCamParams(
+      CameraParameters &parameters,
+      const std::set<std::string>& filter = std::set<std::string>()
+  );
+
+  /**
+   * @brief Retrieves the state on the camera and and synchronize the driver's state to match.
+   *
    * This function is intended to be called internally, after opening a camera handle
    * (in connectCam()) or after loading a UEye camera configuration file
    * (in loadCamConfig()), where the camera may be already operating with a
    * non-supported setting.
-   * 
-   * \param dft_mode_str: default color mode to switch to, if current color mode
-   *   is not supported by this driver wrapper. Valid values: {"rgb8", "bgr8", "mono8", "bayer_rggb8"}
-   * 
-   * \return IS_SUCCESS if successful, error flag otherwise (see err2str).
+   *
+   * @throw runtime_error if an error occurs retrieving the information from the camera
    */
-  virtual INT syncCamConfig(std::string dft_mode_str = "mono8");
-
+  virtual void syncCamConfig();
 
   virtual void handleTimeout() {}
-
 
   /**
    * (Re-)allocates internal frame buffer after querying current

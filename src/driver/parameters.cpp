@@ -76,37 +76,41 @@ const double SensorScalingRatio::SS_4X = 4.0;
 const double SensorScalingRatio::SS_8X = 8.0;
 const double SensorScalingRatio::SS_16X = 16.0;
 
+const std::set<std::string> CameraParameters::RestartFrameGrabberSet{
+  "image_width",
+  "image_height",
+  "image_left",
+  "image_top",
+  "color_mode",
+  "subsampling",
+  "binning",
+  "sensor_scaling"
+  "ext_trigger_mode",
+  "gpio1",
+  "gpio2",
+};
+
+const std::set<std::string> CameraParameters::ReallocateBufferSet{
+  "image_width",
+  "image_height",
+  "image_left",
+  "image_top",
+  "color_mode",
+  "subsampling",
+  "binning",
+  "sensor_scaling",
+};
+
 /*****************************************************************************
  ** Methods
  *****************************************************************************/
 
-void CameraParameters::validate(const CameraParameters& fallbacks) {
+void CameraParameters::validate() const {
   std::ostringstream ostream;
 
-  // Auto frame rate requires auto shutter
-  if (!auto_exposure) {
-    if (auto_frame_rate) {
-      ostream << " - disabling 'auto_frame_rate' as it requires 'auto_exposure' [auto_frame_rate: true->false][auto_exposure: false]\n";
-      auto_frame_rate = false;
-    }
-  }
-  // Auto frame rate has precedence over auto gain
-  if (auto_frame_rate) {
-    if (auto_gain) {
-      ostream << " - disabling 'auto_gain' as 'auto_frame_rate' has precedence [auto_frame_rate: true][auto_gain: true->false]\n";
-      auto_gain = false;
-    }
-  }
-  if (image_width <= 0) {
-    ostream << " - invalid image width, falling back [width: " << image_width << "->" << fallbacks.image_width << "]\n";
-    image_width = fallbacks.image_width;
-  }
-
-  if (image_height <= 0) {
-    ostream << " - invalid image height, falling back [height: " << image_height << "->" << fallbacks.image_height << "]\n";
-    image_height = fallbacks.image_height;
-  }
-
+  if (image_width <= 0) { ostream << " - invalid image_width [width: " << image_width << "]\n"; }
+  if (image_height <= 0) { ostream << " - invalid image_height [height: " << image_height << "]\n"; }
+  // image_left, image_top
   if (!(color_mode == ColorMode::MONO8 ||
       color_mode == ColorMode::MONO10 ||
       color_mode == ColorMode::MONO12 ||
@@ -123,103 +127,82 @@ void CameraParameters::validate(const CameraParameters& fallbacks) {
       color_mode == ColorMode::BAYER_RGGB10 ||
       color_mode == ColorMode::BAYER_RGGB12 ||
       color_mode == ColorMode::BAYER_RGGB16
-  )) {
-    ostream << " - invalid color_mode, falling back [color:" << color_mode << "->" << fallbacks.color_mode << "]\n";
-    color_mode = fallbacks.color_mode;
-  }
+  )) { ostream << " - invalid color_mode [color_mode:" << color_mode << "]\n"; }
 
   if (!(subsampling == SubSamplingRatio::SUB_1X ||
       subsampling == SubSamplingRatio::SUB_2X ||
       subsampling == SubSamplingRatio::SUB_4X ||
       subsampling == SubSamplingRatio::SUB_8X ||
       subsampling == SubSamplingRatio::SUB_16X)) {
-    ostream << " - invalid subsampling rate, falling back [subsampling: ";
-    ostream << subsampling << "->" << fallbacks.subsampling << "]\n";
-    subsampling = fallbacks.subsampling;
+    ostream << " - invalid subsampling rate [subsampling: " << subsampling << "]\n";
   }
-
-  if (master_gain < 0 ||
-      master_gain > 100) {
-    ostream << " - invalid master_gain [0-100], falling back [gain: ";
-    ostream << master_gain << "->" << fallbacks.master_gain <<"]\n";
-    master_gain = fallbacks.master_gain;
+  // binning
+  // sensor scaling
+  // auto_gain
+  if (master_gain < 0 || master_gain > 100) {
+    ostream << " - invalid master_gain [0-100] [gain: " << master_gain << "]\n";
   }
-
-  if (red_gain < 0 ||
-      red_gain > 100) {
-    ostream << " - invalid red_gain [0-100], falling back [gain: ";
-    ostream << red_gain << "->" << fallbacks.red_gain <<"]\n";
-    red_gain = fallbacks.red_gain;
+  if (red_gain < 0 || red_gain > 100) {
+    ostream << " - invalid red_gain [0-100] [gain: " << red_gain << "]\n";
   }
-
-  if (green_gain < 0 ||
-      green_gain > 100) {
-    ostream << " - invalid green_gain [0-100], falling back [gain: ";
-    ostream << green_gain << "->" << fallbacks.green_gain <<"]\n";
-    green_gain = fallbacks.green_gain;
+  if (green_gain < 0 || green_gain > 100) {
+    ostream << " - invalid green_gain [0-100] [gain: " << green_gain << "]\n";
   }
-
-  if (blue_gain < 0 ||
-      blue_gain > 100) {
-    ostream << " - invalid blue_gain [0-100], falling back [gain: ";
-    ostream << blue_gain << "->" << fallbacks.blue_gain <<"]\n";
-    blue_gain = fallbacks.blue_gain;
+  if (blue_gain < 0 || blue_gain > 100) {
+    ostream << " - invalid blue_gain [0-100] [gain: " << blue_gain << "]\n";
   }
-
-  if (exposure < 0.0) {
-    ostream << " - invalid auto exposure [>0.0], falling back [exposure: ";
-    ostream << exposure << "->" << fallbacks.exposure <<"]\n";
-    exposure = fallbacks.exposure;
-  }
-
+  // gain_boost
+  // software_gamma
+  // auto_exposure
+  // auto_exposure_reference
+  if (exposure < 0.0) { ostream << " - exposure must be >= 0 [exposure: " << exposure << "]\n"; }
+  // auto_white_balance
   if (white_balance_red_offset < -50 ||
       white_balance_red_offset > 50) {
-    ostream << " - invalid white_balance_red_offset [-50,-50], falling back [offset: ";
-    ostream << white_balance_red_offset << "->" << fallbacks.white_balance_red_offset <<"]\n";
-    white_balance_red_offset = fallbacks.white_balance_red_offset;
+    ostream << " - white_balance_red_offset must be in [-50,-50] [offset: ";
+    ostream << white_balance_red_offset << "]\n";
   }
-
   if (white_balance_blue_offset < -50 ||
       white_balance_blue_offset > 50) {
-    ostream << " - invalid white_balance_blue_offset [-50,-50], falling back [offset: ";
-    ostream << white_balance_blue_offset << "->" << fallbacks.white_balance_blue_offset <<"]\n";
-    white_balance_blue_offset = fallbacks.white_balance_blue_offset;
+    ostream << " - white_balance_blue_offset must be in [-50,-50] [offset: ";
+    ostream << white_balance_blue_offset << "]\n";
   }
-
-
+  // flash_delay
   if (flash_duration < 0.0) {
-    ostream << " - invalid flash_duration [>= 0.0], falling back [flash_duration: ";
-    ostream << flash_duration << "->" << fallbacks.flash_duration <<"]\n";
-    flash_duration = fallbacks.flash_duration;
+    ostream << " - flash_duration must be >= 0.0 [flash_duration: " << flash_duration << "]\n";
   }
-
+  // ext_trigger_mode
+  // trigger_rising_edge
+  // gpio1
+  // gpio2
+  // pwm_freq
+  // pwm_duty_cycle
+  // auto_frame_rate - requires auto shutter
+  if (auto_frame_rate && !auto_exposure ) { ostream << " - 'auto_frame_rate' requires 'auto_exposure'\n"; }
+  // auto frame rate - has precedence over auto gain
+  if (auto_frame_rate && auto_gain) {
+      ostream << " - 'auto_frame_rate' has precedence over 'auto_gain' ('auto_gain can't be true at the same time)\n";
+  }
   if (frame_rate < 0.0) {
-    ostream << " - invalid frame_rate [>= 0.0], falling back [frame_rate: ";
-    ostream << frame_rate << "->" << fallbacks.frame_rate <<"]\n";
-    frame_rate = fallbacks.frame_rate;
+    ostream << " - frame_rate must be >=0.0 [frame_rate: " << frame_rate << "]\n";
   }
-
   if (output_rate < 0.0) {
-    ostream << " - invalid output_rate [>= 0.0], falling back [output_rate: ";
-    ostream << output_rate << "->" << fallbacks.output_rate <<"]\n";
-    output_rate = fallbacks.output_rate;
+    ostream << " - invalid output_rate, must be >=0.0 [output_rate: " << output_rate << "]\n";
   }
-
   if (output_rate > frame_rate) {
-    ostream << "\n  requested output_rate exceeds incoming frame_rate, throttling it to frame_rate [output_rate: ";
-    ostream << output_rate << "->" << frame_rate <<"]\n";
-    output_rate = frame_rate;
+    ostream << "\n  requested output_rate exceeds incoming frame_rate ";
+    ostream << "[output_rate: " << output_rate << ", " << frame_rate <<"]\n";
   }
+  if (pixel_clock < 0) { ostream << " - pixel_clock must be > 0 [pixel_clock: " << pixel_clock << "]\n"; }
 
-  if (pixel_clock < 0) {
-    ostream << " - invalid pixel_clock [> 0], falling back [pixel_clock: ";
-    ostream << pixel_clock << "->" << fallbacks.pixel_clock <<"]\n";
-    pixel_clock = fallbacks.pixel_clock;
-  }
+  // flip_vertical
+  // flip_horizontal
+
   std::string error_message = ostream.str();
   if ( !error_message.empty() ) {
     throw std::invalid_argument(ostream.str());
   }
+
 }
 
 std::string CameraParameters::to_str() const {
@@ -256,8 +239,8 @@ std::string CameraParameters::to_str() const {
   ostream << "  Pixel Clock (MHz):\t\t" << pixel_clock << "\n";
   ostream << "  GPIO1 Mode:\t\t\t" << gpio1 << "\n";
   ostream << "  GPIO2 Mode:\t\t\t" << gpio1 << "\n";
-  ostream << "  Mirror Image Upside Down:\t" << flip_upd << "\n";
-  ostream << "  Mirror Image Left Right:\t" << flip_lr << "\n";
+  ostream << "  Flip Image Vertically:\t" << flip_vertical << "\n";
+  ostream << "  Flip Image Horizontally:\t" << flip_horizontal << "\n";
   return ostream.str();
 }
 

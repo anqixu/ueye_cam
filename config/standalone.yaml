@@ -8,6 +8,5 @@ ueye_cam:
     camera_id: 1
     color_mode: rgb8
     auto_gain: true
-    green_gain: 1
-    blue_gain: 15
+    # green_gain: 15
     auto_white_balance: true

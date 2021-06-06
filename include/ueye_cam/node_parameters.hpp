@@ -73,6 +73,12 @@ struct NodeParameters {
     camera_parameters_filename("")
   {}
 
+  void validate() const {
+    if (camera_id < 0 ) {
+      throw std::invalid_argument("invalid camera id specified, must be >= 0 (0 -> ANY_CAMERA)");
+    }
+  }
+
   std::string to_str() const {
     std::ostringstream ostream;
     ostream << "Node Parameters\n";
