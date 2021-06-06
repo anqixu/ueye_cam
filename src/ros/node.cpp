@@ -139,10 +139,6 @@ void log_nested_exception(
 Node::Node(const rclcpp::NodeOptions & options):
     rclcpp::Node("ueye_cam", options),
     node_parameters_(),
-    parameters_client_(nullptr),
-    parameter_events_subscriber_(nullptr),
-    parameter_sync_requested_(false),
-    parameter_sync_mutex_(),
     ros_cam_pub_(),
     ros_image_(),
     ros_cam_info_(),
@@ -246,9 +242,13 @@ Node::Node(const rclcpp::NodeOptions & options):
    * Dynamic Parameters
    ******************************************/
   // Could be moved up front and save on one round of configuration, but better
-  // here since it lets a batched configuration be pre-tested that will
-  // fail hard and fast with useful warning messages.
-  setupParameterEventHandling();
+  // here since it lets a batched configuration be pre-tested that will fail
+  // hard and fast with useful warning messages.
+
+  // TODO: foxy, this becomes add_on_set_parameters_callback
+  this->set_on_parameters_set_callback(
+      std::bind(&Node::onParameterChange, this, std::placeholders::_1)
+  );
 }
 
 Node::~Node()
@@ -384,16 +384,6 @@ void Node::frameGrabLoop() {
     RCLCPP_INFO(this->get_logger(), "switched to standby mode on camera '%s'", node_parameters_.camera_name.c_str());
   }
   prevNumSubscribers = currNumSubscribers;
-
-  // Send updated parameters if previously changed
-  if (parameter_sync_requested_) {
-    if (parameter_sync_mutex_.try_lock()) { // Ensure parameter events is not mid-processing
-      parameter_sync_mutex_.unlock();
-      // ros_cfg_->updateConfig(camera_parameters_);  // DJS: TODO
-      parameter_sync_requested_ = false;
-    }
-  }
-
 
 #ifdef DEBUG_PRINTOUT_FRAME_GRAB_RATES
     startGrabCount++;
@@ -681,68 +671,26 @@ void Node::reflectParameters() {
   ros_image_.header.frame_id = node_parameters_.frame_name;
 }
 
-void Node::setupParameterEventHandling() {
-  parameters_client_ = std::make_shared<rclcpp::SyncParametersClient>(this);
-  while (!parameters_client_->wait_for_service(std::chrono::seconds(1))) {
-    if (!rclcpp::ok()) {
-      RCLCPP_ERROR(this->get_logger(), "Interrupted while waiting for the service. Exiting.");
-      // TODO: need a way to exit here
-    }
-    RCLCPP_INFO(this->get_logger(), "parameter service not available, waiting again...");
-  }
-  parameter_events_subscriber_ = parameters_client_->on_parameter_event(
-      std::bind(&Node::onParameterEvent, this, std::placeholders::_1)
-  );
-}
+rcl_interfaces::msg::SetParametersResult Node::onParameterChange(std::vector<rclcpp::Parameter> parameters) {
 
-bool Node::onParameterEvent(const ParameterEventPtr event)
-{
-  if (
-    !event->new_parameters.size() && !event->changed_parameters.size() &&
-    !event->deleted_parameters.size())
-  {
-    return false;
-  }
-  /****************************************
-   * On New
-   ***************************************/
-  for (auto & parameter : event->new_parameters) {
-    RCLCPP_WARN(this->get_logger(), "not handling requests for new parameters, ignoring [%s].", parameter.name.c_str());
-  }
-  /****************************************
-   * On Deleted
-   ***************************************/
-  for (auto & parameter : event->deleted_parameters) {
-    RCLCPP_WARN(this->get_logger(), "not handling requests for deleted parameters, ignoring [%s].", parameter.name.c_str());
-  }
-  /****************************************
-   * On Changes
-   ***************************************/
+  // see also: https://github.com/ros2/demos/blob/master/demo_nodes_cpp/src/parameters/even_parameters_node.cpp
+
+  auto result = rcl_interfaces::msg::SetParametersResult();
+  result.successful = true;
+
+  /*********************
+   * Checks
+   *********************/
   if (!isConnected()) {
     std::ostringstream ostream;
     RCLCPP_WARN(this->get_logger(), "cannot reconfigure parameters [camera not connected]");
-    // TODO: unset changes
-    return false;
+    result.successful = false;
+    return result;
   }
 
-
-  bool restart_frame_grabber = false;
-  // Special handling needed?
-  std::set<std::string> changed_parameters;
-  for (auto & parameter : event->changed_parameters) {
-    changed_parameters.insert(parameter.name);
-    if ( CameraParameters::RestartFrameGrabberSet.find(parameter.name) != CameraParameters::RestartFrameGrabberSet.end() ) {
-      restart_frame_grabber = true;
-    }
-  }
-  if (restart_frame_grabber && frame_grab_alive_) {
-    stopFrameGrabber();
-  }
-  // Validate parameters
   CameraParameters original_parameters = camera_parameters_;
   CameraParameters new_parameters = camera_parameters_;
-  for (auto & msg : event->changed_parameters) {
-    rclcpp::Parameter parameter = rclcpp::Parameter::from_parameter_msg(msg);
+  for (const rclcpp::Parameter& parameter : parameters) {
     if (parameter.get_name() == "color_mode") { new_parameters.color_mode = parameter.as_string(); }
     else if (parameter.get_name() == "image_width" ) { new_parameters.image_width = parameter.as_int(); }
     else if (parameter.get_name() == "image_height" ) { new_parameters.image_height = parameter.as_int(); }
@@ -780,20 +728,42 @@ bool Node::onParameterEvent(const ParameterEventPtr event)
     else if (parameter.get_name() == "flip_horizontal" ) { new_parameters.flip_horizontal = parameter.as_bool(); }
     else {
       RCLCPP_WARN(this->get_logger(), "[%s] is not a reconfigurable parameter, rejecting.", parameter.get_name());
-      // TODO: unset all changed parameters (just returning 'false' doesn't do this)
-      return false;
+      result.successful = false;
     }
   }
+  if ( !result.successful ) {
+    return result;
+  }
 
-  // validate
+  /*********************
+   * Validate
+   *********************/
   try {
     new_parameters.validate();
   } catch (const std::invalid_argument& e) {
-    RCLCPP_WARN(this->get_logger(), "parameter reconfiguration invalid, rejecting\n%s", e.what());
-    return false;
+    RCLCPP_WARN(this->get_logger(), "incoming parameter configuration invalid, rejecting\n%s", e.what());
+    result.successful = false;
+    return result;
   }
 
-  // set parameters on camera
+  /*********************
+   * Preparation
+   *********************/
+  bool restart_frame_grabber = false;
+  std::set<std::string> changed_parameters;
+  for (const rclcpp::Parameter& parameter : parameters) {
+    changed_parameters.insert(parameter.get_name());
+    if ( CameraParameters::RestartFrameGrabberSet.find(parameter.get_name()) != CameraParameters::RestartFrameGrabberSet.end() ) {
+      restart_frame_grabber = true;
+    }
+  }
+  if (restart_frame_grabber && frame_grab_alive_) {
+    stopFrameGrabber();
+  }
+
+  /*********************
+   * Set Parameters
+   *********************/
   try {
     setCamParams(new_parameters, changed_parameters);
   } catch (const std::invalid_argument& e) {
@@ -807,16 +777,16 @@ bool Node::onParameterEvent(const ParameterEventPtr event)
       RCLCPP_FATAL(this->get_logger(), "Failed to restore camera configuration to a working state, aborting");
       throw std::runtime_error("Failed to restore camera configuration to a working state, aborting");
     }
-    // TODO: unset all changed parameters (just returning 'false' doesn't do this)
-    return false;
+    result.successful = false;
+    return result;
   }
 
   if (restart_frame_grabber) {
     startFrameGrabber();
   }
 
-  printConfiguration();           // debugging
-  return true;
+  printConfiguration(); // debugging
+  return result;
 }
 
 /*****************************************************************************

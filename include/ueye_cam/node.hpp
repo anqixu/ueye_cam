@@ -40,6 +40,7 @@
 
 #include <memory>
 #include <thread>
+#include <vector>
 
 // #include <boost/thread/mutex.hpp>
 
@@ -96,14 +97,9 @@ private:
   const NodeParameters fetchROSNodeParameters() const; /**< Fetch node parameters from the node **/
   const CameraParameters fetchROSCameraParameters() const; /**< Fetch camera parameters from the node **/
   void reflectParameters(); /**< Reflect a subset of parameters back to the driver. **/
-  void setupParameterEventHandling(); /**< Setup client/callback for handling dynamically reconfigurable parameters. **/
-  bool onParameterEvent(const ParameterEventPtr event); /**< Dynamic parameter callback **/
+  rcl_interfaces::msg::SetParametersResult onParameterChange(std::vector<rclcpp::Parameter> parameters); /**< Dynamic parameter callback **/
 
   NodeParameters node_parameters_;
-  std::shared_ptr<rclcpp::SyncParametersClient> parameters_client_;
-  rclcpp::Subscription<rcl_interfaces::msg::ParameterEvent>::SharedPtr parameter_events_subscriber_;
-  bool parameter_sync_requested_;
-  std::recursive_mutex parameter_sync_mutex_;  // DJS: previously ros_cfg_mutex_, a boost recursive mutex
 
   /********************************************
    * Non-Parameter Initialisation
