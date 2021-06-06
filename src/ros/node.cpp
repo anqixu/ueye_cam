@@ -175,7 +175,15 @@ Node::Node(const rclcpp::NodeOptions & options):
   /******************************************
    * Basic ROS Setup
    ******************************************/
-  loadIntrinsicsFile();           // camera_calibration
+  if (std::ifstream(node_parameters_.camera_intrinsics_filename.c_str()).good()) {
+    loadIntrinsicsFile();           // camera_calibration
+  } else {
+    RCLCPP_WARN(
+      this->get_logger(),
+      "intrinsics file not found, skipping camera calibration setup [%s]",
+      node_parameters_.camera_intrinsics_filename.c_str()
+    );
+  }
   setupROSCommunications();       // middleware
 
   /******************************************
