@@ -42,8 +42,6 @@
 #include <map>
 
 #include "camera_parameters.hpp"
-#include "logging_macros.hpp"
-
 
 namespace ueye_cam {
 
