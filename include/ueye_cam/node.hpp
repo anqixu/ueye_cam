@@ -124,7 +124,8 @@ private:
 
   std::thread frame_grab_thread_;
   bool frame_grab_alive_;
-  std::mutex output_rate_mutex_;  // DJS: previously a boost mutex, std will be fine?
+  std::mutex output_rate_mutex_;
+  std::mutex parameter_mutex_;
 
 //
 //  /**

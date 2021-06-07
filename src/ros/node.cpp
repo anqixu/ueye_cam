@@ -191,6 +191,7 @@ Node::Node(const rclcpp::NodeOptions & options):
     std::ostringstream ostream;
     ostream << "failed to connect to camera '" << node_parameters_.camera_name << "', aborting.";
     log_nested_exception(FATAL, this->get_logger(), ostream.str());
+    rclcpp::shutdown();
     return;
   }
 
@@ -204,6 +205,7 @@ Node::Node(const rclcpp::NodeOptions & options):
       std::ostringstream ostream;
       ostream << "failed to load IDS configuration on camera '" << node_parameters_.camera_name << "', aborting.";
       log_nested_exception(FATAL, this->get_logger(), ostream.str());
+      rclcpp::shutdown();
       return;
     }
     // Pull back the configuration, use it as defaults for the ros parameterisation
@@ -224,6 +226,7 @@ Node::Node(const rclcpp::NodeOptions & options):
     std::ostringstream ostream;
     ostream << "parameterisation on the ROS node for camera '" << node_parameters_.camera_name << "' is invalid, aborting.";
     log_nested_exception(FATAL, this->get_logger(), ostream.str());
+    rclcpp::shutdown();
     return;
   }
 
@@ -234,11 +237,13 @@ Node::Node(const rclcpp::NodeOptions & options):
     std::ostringstream ostream;
     ostream << "cannot set parameters on camera '" << node_parameters_.camera_name << "', aborting.";
     log_nested_exception(FATAL, this->get_logger(), ostream.str());
+    rclcpp::shutdown();
     return;
   } catch (const std::invalid_argument& e) {
     std::ostringstream ostream;
     ostream << "failed to set parameters on camera '" << node_parameters_.camera_name << "', aborting.";
     log_nested_exception(FATAL, this->get_logger(), ostream.str());
+    rclcpp::shutdown();
     return;
   }
 
@@ -350,11 +355,12 @@ void Node::frameGrabLoop() {
       prev_output_frame_idx_ = 0;
       output_rate_mutex_.unlock();
 
+      std::lock_guard<std::mutex> guard{parameter_mutex_};
       if (camera_parameters_.ext_trigger_mode) {
         if (setExtTriggerMode(camera_parameters_.trigger_rising_edge) != IS_SUCCESS) {
           std::ostringstream ostream;
           ostream << "failed to set external trigger mode on camera '" << node_parameters_.camera_name << "', aborting.";
-          log_nested_exception(FATAL, this->get_logger(), ostream.str());
+          RCLCPP_FATAL(this->get_logger(), "%s", ostream.str().c_str());
           rclcpp::shutdown();
           return;
         }
@@ -363,7 +369,7 @@ void Node::frameGrabLoop() {
         if (setFreeRunMode() != IS_SUCCESS) {
           std::ostringstream ostream;
           ostream << "failed to set free run mode on camera '" << node_parameters_.camera_name << "', aborting.";
-          log_nested_exception(FATAL, this->get_logger(), ostream.str());
+          RCLCPP_FATAL(this->get_logger(), "%s", ostream.str().c_str());
           rclcpp::shutdown();
           return;
         }
@@ -381,10 +387,11 @@ void Node::frameGrabLoop() {
         RCLCPP_INFO(this->get_logger(), "switched to streaming (free-run) mode on camera '%s'", node_parameters_.camera_name.c_str());
       }
     } else if (currNumSubscribers <= 0 && prevNumSubscribers > 0) {
+      std::lock_guard<std::mutex> guard{parameter_mutex_};
       if (setStandbyMode() != IS_SUCCESS) {
         std::ostringstream ostream;
         ostream << "failed to set standby mode on camera '" << node_parameters_.camera_name << "', aborting.";
-        log_nested_exception(FATAL, this->get_logger(), ostream.str());
+        RCLCPP_FATAL(this->get_logger(), "%s", ostream.str().c_str());
         rclcpp::shutdown();
         return;
       }
@@ -403,9 +410,14 @@ void Node::frameGrabLoop() {
 #endif
 
     if (isCapturing()) {
+      parameter_mutex_.lock();
       UINT eventTimeout = (camera_parameters_.auto_frame_rate || camera_parameters_.ext_trigger_mode) ?
           static_cast<INT>(2000) : static_cast<INT>(1000.0 / camera_parameters_.frame_rate * 2);
+      parameter_mutex_.unlock();
+
       if (processNextFrame(eventTimeout) != nullptr) {
+        std::lock_guard<std::mutex> guard{parameter_mutex_};
+
         // Initialize shared pointers from member messages for nodelet intraprocess publishing
         sensor_msgs::msg::Image::SharedPtr img_msg_ptr(new sensor_msgs::msg::Image(ros_image_));
         sensor_msgs::msg::CameraInfo::SharedPtr cam_info_msg_ptr(new sensor_msgs::msg::CameraInfo(ros_cam_info_));
@@ -695,12 +707,19 @@ rcl_interfaces::msg::SetParametersResult Node::onParameterChange(std::vector<rcl
     return result;
   }
 
-  NodeParameters new_node_parameters = node_parameters_;
+  output_rate_mutex_.lock();
+  double new_output_rate = node_parameters_.output_rate;
+  output_rate_mutex_.unlock();
+
+  parameter_mutex_.lock();
   CameraParameters original_parameters = camera_parameters_;
   CameraParameters new_parameters = camera_parameters_;
+  parameter_mutex_.unlock();
+
   for (const rclcpp::Parameter& parameter : parameters) {
     // node parameters
-    if (parameter.get_name() == "output_rate" ) { new_node_parameters.output_rate = parameter.as_double(); }
+    if (parameter.get_name() == "output_rate" ) { new_output_rate = parameter.as_double(); }
+    // camera parameters
     else if (parameter.get_name() == "color_mode") { new_parameters.color_mode = parameter.as_string(); }
     else if (parameter.get_name() == "image_width" ) { new_parameters.image_width = parameter.as_int(); }
     else if (parameter.get_name() == "image_height" ) { new_parameters.image_height = parameter.as_int(); }
@@ -750,10 +769,10 @@ rcl_interfaces::msg::SetParametersResult Node::onParameterChange(std::vector<rcl
   try {
     new_parameters.validate();
     // cross-validation
-    if (new_node_parameters.output_rate > new_parameters.frame_rate) {
+    if (new_output_rate > new_parameters.frame_rate) {
       std::ostringstream ostream;
       ostream << "\n  requested output_rate exceeds incoming frame_rate ";
-      ostream << "[output_rate: " << new_node_parameters.output_rate << ", " << new_parameters.frame_rate <<"]\n";
+      ostream << "[output_rate: " << new_output_rate << ", " << new_parameters.frame_rate <<"]\n";
       throw std::invalid_argument(ostream.str());
     }
   } catch (const std::invalid_argument& e) {
@@ -787,6 +806,7 @@ rcl_interfaces::msg::SetParametersResult Node::onParameterChange(std::vector<rcl
    *********************/
   // camera parameters
   try {
+    std::lock_guard<std::mutex> guard{parameter_mutex_};  // setCamParams updates camera_parameters_
     setCamParams(new_parameters, changed_parameters);
   } catch (const std::invalid_argument& e) {
     // restore original 'working' parameters
@@ -794,6 +814,7 @@ rcl_interfaces::msg::SetParametersResult Node::onParameterChange(std::vector<rcl
     ostream << "failed to reconfigure parameters on camera, rejecting [" << e.what() << "]";
     RCLCPP_WARN(this->get_logger(), ostream.str().c_str());
     try {
+      std::lock_guard<std::mutex> guard{parameter_mutex_};  // setCamParams updates camera_parameters_
       setCamParams(original_parameters);
     } catch (const std::invalid_argument& e) {
       RCLCPP_FATAL(this->get_logger(), "Failed to restore camera configuration to a working state, aborting");
@@ -804,8 +825,8 @@ rcl_interfaces::msg::SetParametersResult Node::onParameterChange(std::vector<rcl
   }
   // node parameters
   if ( changed_node_parameters.find("output_rate") != changed_node_parameters.end() ) {
-    node_parameters_.output_rate = new_node_parameters.output_rate;
     output_rate_mutex_.lock();
+    node_parameters_.output_rate = new_output_rate;
     init_publish_time_ = this->now();
     prev_output_frame_idx_ = 0;
     output_rate_mutex_.unlock();
