@@ -61,6 +61,7 @@ struct NodeParameters {
   int camera_id;
   std::string frame_name;
   std::string topic_name;
+  double output_rate;  /**< Topic publishing rate (Hz) (0: publish all processed frames) [min:0, max:200.0] */
   std::string camera_intrinsics_filename;
   std::string camera_parameters_filename;
 
@@ -69,6 +70,7 @@ struct NodeParameters {
     camera_id(Driver::ANY_CAMERA),
     frame_name("camera"),
     topic_name("image_raw"),
+    output_rate(0.0),
     camera_intrinsics_filename(""),
     camera_parameters_filename("")
   {}
@@ -76,6 +78,9 @@ struct NodeParameters {
   void validate() const {
     if (camera_id < 0 ) {
       throw std::invalid_argument("invalid camera id specified, must be >= 0 (0 -> ANY_CAMERA)");
+    }
+    if (output_rate < 0 ) {
+      throw std::invalid_argument("invalid output_rate specified, must be >= 0 (0 -> publish all captured frames)");
     }
   }
 
@@ -86,6 +91,7 @@ struct NodeParameters {
     ostream << "  Camera Id:\t\t\t" << camera_id << "\n";
     ostream << "  Frame Name:\t\t\t" << frame_name << "\n";
     ostream << "  Topic Name:\t\t\t" << topic_name << "\n";
+    ostream << "  Output Rate:\t\t\t" << output_rate << "\n";
     ostream << "  Intrinsics Filename:\t\t" << camera_intrinsics_filename << "\n";
     ostream << "  Parameters Filename:\t\t" << camera_parameters_filename << "\n";
     return ostream.str();

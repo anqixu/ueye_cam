@@ -186,13 +186,6 @@ void CameraParameters::validate() const {
   if (frame_rate < 0.0) {
     ostream << " - frame_rate must be >=0.0 [frame_rate: " << frame_rate << "]\n";
   }
-  if (output_rate < 0.0) {
-    ostream << " - invalid output_rate, must be >=0.0 [output_rate: " << output_rate << "]\n";
-  }
-  if (output_rate > frame_rate) {
-    ostream << "\n  requested output_rate exceeds incoming frame_rate ";
-    ostream << "[output_rate: " << output_rate << ", " << frame_rate <<"]\n";
-  }
   if (pixel_clock < 0) { ostream << " - pixel_clock must be > 0 [pixel_clock: " << pixel_clock << "]\n"; }
 
   // flip_vertical
@@ -235,7 +228,6 @@ std::string CameraParameters::to_str() const {
   ostream << "  Trigger Rising Edge:\t\t" << trigger_rising_edge << "\n";
   ostream << "  Auto Frame Rate:\t\t" << auto_frame_rate << "\n";
   ostream << "  Frame Rate (Hz):\t\t" << frame_rate << "\n";
-  ostream << "  Output Rate (Hz):\t\t" << output_rate << "\n";
   ostream << "  Pixel Clock (MHz):\t\t" << pixel_clock << "\n";
   ostream << "  GPIO1 Mode:\t\t\t" << gpio1 << "\n";
   ostream << "  GPIO2 Mode:\t\t\t" << gpio1 << "\n";

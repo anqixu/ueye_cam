@@ -213,6 +213,13 @@ Node::Node(const rclcpp::NodeOptions & options):
   camera_parameters = fetchROSCameraParameters();  // can/will be different to defaults if e.g. launch configures them
   try {
     camera_parameters.validate();
+    // cross-validation
+    if (node_parameters_.output_rate > camera_parameters.frame_rate) {
+      std::ostringstream ostream;
+      ostream << "\n  requested output_rate exceeds incoming frame_rate ";
+      ostream << "[output_rate: " << node_parameters_.output_rate << ", " << camera_parameters.frame_rate <<"]\n";
+      throw std::invalid_argument(ostream.str());
+    }
   } catch (const std::invalid_argument& e) {
     std::ostringstream ostream;
     ostream << "parameterisation on the ROS node for camera '" << node_parameters_.camera_name << "' is invalid, aborting.";
@@ -330,60 +337,60 @@ void Node::frameGrabLoop() {
   unsigned int currNumSubscribers = 0;
   while (frame_grab_alive_ && rclcpp::ok()) {
 
-  // Workaround for https://github.com/ros-perception/image_common/issues/114. Reinstate the line below when fixed.
-  // currNumSubscribers = ros_cam_pub_.getNumSubscribers();
-  currNumSubscribers = std::max(
-    this->count_subscribers(ros_cam_pub_.getTopic()),
-    this->count_subscribers(ros_cam_pub_.getInfoTopic())
-  );
-  if (currNumSubscribers > 0 && prevNumSubscribers <= 0) {
-    // Reset reference time to prevent throttling first frame
-    output_rate_mutex_.lock();
-    init_publish_time_ = this->now();
-    prev_output_frame_idx_ = 0;
-    output_rate_mutex_.unlock();
+    // Workaround for https://github.com/ros-perception/image_common/issues/114. Reinstate the line below when fixed.
+    // currNumSubscribers = ros_cam_pub_.getNumSubscribers();
+    currNumSubscribers = std::max(
+      this->count_subscribers(ros_cam_pub_.getTopic()),
+      this->count_subscribers(ros_cam_pub_.getInfoTopic())
+    );
+    if (currNumSubscribers > 0 && prevNumSubscribers <= 0) {
+      // Reset reference time to prevent throttling first frame
+      output_rate_mutex_.lock();
+      init_publish_time_ = this->now();
+      prev_output_frame_idx_ = 0;
+      output_rate_mutex_.unlock();
 
-    if (camera_parameters_.ext_trigger_mode) {
-      if (setExtTriggerMode(camera_parameters_.trigger_rising_edge) != IS_SUCCESS) {
+      if (camera_parameters_.ext_trigger_mode) {
+        if (setExtTriggerMode(camera_parameters_.trigger_rising_edge) != IS_SUCCESS) {
+          std::ostringstream ostream;
+          ostream << "failed to set external trigger mode on camera '" << node_parameters_.camera_name << "', aborting.";
+          log_nested_exception(FATAL, this->get_logger(), ostream.str());
+          rclcpp::shutdown();
+          return;
+        }
+        RCLCPP_INFO(this->get_logger(), "switched to trigger mode on camera '%s'", node_parameters_.camera_name.c_str());
+      } else {
+        if (setFreeRunMode() != IS_SUCCESS) {
+          std::ostringstream ostream;
+          ostream << "failed to set free run mode on camera '" << node_parameters_.camera_name << "', aborting.";
+          log_nested_exception(FATAL, this->get_logger(), ostream.str());
+          rclcpp::shutdown();
+          return;
+        }
+
+        // NOTE: need to copy flash parameters to local copies since
+        //       camera_parameters_.flash_duration is type int, and also sizeof(int)
+        //       may not equal to sizeof(INT) / sizeof(UINT)
+        INT flash_delay = camera_parameters_.flash_delay;
+        UINT flash_duration = static_cast<unsigned int>(camera_parameters_.flash_duration);
+        setFlashParams(flash_delay, flash_duration);
+        // Copy back actual flash parameter values that were set
+        camera_parameters_.flash_delay = flash_delay;
+        camera_parameters_.flash_duration = static_cast<int>(flash_duration);
+
+        RCLCPP_INFO(this->get_logger(), "switched to streaming (free-run) mode on camera '%s'", node_parameters_.camera_name.c_str());
+      }
+    } else if (currNumSubscribers <= 0 && prevNumSubscribers > 0) {
+      if (setStandbyMode() != IS_SUCCESS) {
         std::ostringstream ostream;
-        ostream << "failed to set external trigger mode on camera '" << node_parameters_.camera_name << "', aborting.";
+        ostream << "failed to set standby mode on camera '" << node_parameters_.camera_name << "', aborting.";
         log_nested_exception(FATAL, this->get_logger(), ostream.str());
         rclcpp::shutdown();
         return;
       }
-      RCLCPP_INFO(this->get_logger(), "switched to trigger mode on camera '%s'", node_parameters_.camera_name.c_str());
-    } else {
-      if (setFreeRunMode() != IS_SUCCESS) {
-        std::ostringstream ostream;
-        ostream << "failed to set free run mode on camera '" << node_parameters_.camera_name << "', aborting.";
-        log_nested_exception(FATAL, this->get_logger(), ostream.str());
-        rclcpp::shutdown();
-        return;
-      }
-
-      // NOTE: need to copy flash parameters to local copies since
-      //       camera_parameters_.flash_duration is type int, and also sizeof(int)
-      //       may not equal to sizeof(INT) / sizeof(UINT)
-      INT flash_delay = camera_parameters_.flash_delay;
-      UINT flash_duration = static_cast<unsigned int>(camera_parameters_.flash_duration);
-      setFlashParams(flash_delay, flash_duration);
-      // Copy back actual flash parameter values that were set
-      camera_parameters_.flash_delay = flash_delay;
-      camera_parameters_.flash_duration = static_cast<int>(flash_duration);
-
-      RCLCPP_INFO(this->get_logger(), "switched to streaming (free-run) mode on camera '%s'", node_parameters_.camera_name.c_str());
+      RCLCPP_INFO(this->get_logger(), "switched to standby mode on camera '%s'", node_parameters_.camera_name.c_str());
     }
-  } else if (currNumSubscribers <= 0 && prevNumSubscribers > 0) {
-    if (setStandbyMode() != IS_SUCCESS) {
-      std::ostringstream ostream;
-      ostream << "failed to set standby mode on camera '" << node_parameters_.camera_name << "', aborting.";
-      log_nested_exception(FATAL, this->get_logger(), ostream.str());
-      rclcpp::shutdown();
-      return;
-    }
-    RCLCPP_INFO(this->get_logger(), "switched to standby mode on camera '%s'", node_parameters_.camera_name.c_str());
-  }
-  prevNumSubscribers = currNumSubscribers;
+    prevNumSubscribers = currNumSubscribers;
 
 #ifdef DEBUG_PRINTOUT_FRAME_GRAB_RATES
     startGrabCount++;
@@ -439,13 +446,13 @@ void Node::frameGrabLoop() {
         // Throttle publish rate
         bool throttle_curr_frame = false;
         output_rate_mutex_.lock();
-        if (!camera_parameters_.ext_trigger_mode && camera_parameters_.output_rate > 0) {
+        if (!camera_parameters_.ext_trigger_mode && node_parameters_.output_rate > 0) {
           if (init_publish_time_.nanoseconds() == 0) { // Set reference time
             init_publish_time_ = img_msg_ptr->header.stamp;
           } else {
             rclcpp::Time header_timestamp = img_msg_ptr->header.stamp;  // automagically converts from builtin_interfaces/Time to rclcpp::Time
             double time_elapsed = (header_timestamp - init_publish_time_).seconds();
-            uint64_t curr_output_frame_idx = static_cast<uint64_t>(std::floor(time_elapsed * camera_parameters_.output_rate));
+            uint64_t curr_output_frame_idx = static_cast<uint64_t>(std::floor(time_elapsed * node_parameters_.output_rate));
             if (curr_output_frame_idx <= prev_output_frame_idx_) {
               throttle_curr_frame = true;
             } else {
@@ -552,6 +559,7 @@ void Node::declareROSNodeParameters(const NodeParameters& defaults) {
   this->declare_parameter("camera_id",                  rclcpp::ParameterValue(defaults.camera_id));
   this->declare_parameter("frame_name",                 rclcpp::ParameterValue(defaults.frame_name));
   this->declare_parameter("topic_name",                 rclcpp::ParameterValue(defaults.topic_name));
+  this->declare_parameter("output_rate",                rclcpp::ParameterValue(defaults.output_rate));
   this->declare_parameter("camera_intrinsics_filename", rclcpp::ParameterValue(defaults.camera_intrinsics_filename));
   this->declare_parameter("camera_parameters_filename", rclcpp::ParameterValue(defaults.camera_parameters_filename));
 }
@@ -591,7 +599,6 @@ void Node::declareROSCameraParameters(const CameraParameters& defaults) {
   this->declare_parameter("pwm_duty_cycle",            rclcpp::ParameterValue(defaults.pwm_duty_cycle));
   this->declare_parameter("auto_frame_rate",           rclcpp::ParameterValue(defaults.auto_frame_rate));
   this->declare_parameter("frame_rate",                rclcpp::ParameterValue(defaults.frame_rate));
-  this->declare_parameter("output_rate",               rclcpp::ParameterValue(defaults.output_rate)); // disable by default
   this->declare_parameter("pixel_clock",               rclcpp::ParameterValue(defaults.pixel_clock));
   this->declare_parameter("flip_vertical",             rclcpp::ParameterValue(defaults.flip_vertical));
   this->declare_parameter("flip_horizontal",                   rclcpp::ParameterValue(defaults.flip_horizontal));
@@ -604,6 +611,7 @@ const NodeParameters Node::fetchROSNodeParameters() const {
   this->get_parameter<int>("camera_id",                          parameters.camera_id);
   this->get_parameter<std::string>("frame_name",                 parameters.frame_name);
   this->get_parameter<std::string>("topic_name",                 parameters.topic_name);
+  this->get_parameter<double>("output_rate",                     parameters.output_rate);
   this->get_parameter<std::string>("camera_intrinsics_filename", parameters.camera_intrinsics_filename);
   this->get_parameter<std::string>("camera_parameters_filename", parameters.camera_parameters_filename);
 
@@ -655,7 +663,6 @@ const CameraParameters Node::fetchROSCameraParameters() const {
   this->get_parameter<double>("pwm_duty_cycle",         parameters.pwm_duty_cycle);
   this->get_parameter<bool>("auto_frame_rate",          parameters.auto_frame_rate);
   this->get_parameter<double>("frame_rate",             parameters.frame_rate);
-  this->get_parameter<double>("output_rate",            parameters.output_rate); // disable by default
   this->get_parameter<int>("pixel_clock",               parameters.pixel_clock);
   this->get_parameter<bool>("flip_vertical",                 parameters.flip_vertical);
   this->get_parameter<bool>("flip_horizontal",                  parameters.flip_horizontal);
@@ -688,10 +695,13 @@ rcl_interfaces::msg::SetParametersResult Node::onParameterChange(std::vector<rcl
     return result;
   }
 
+  NodeParameters new_node_parameters = node_parameters_;
   CameraParameters original_parameters = camera_parameters_;
   CameraParameters new_parameters = camera_parameters_;
   for (const rclcpp::Parameter& parameter : parameters) {
-    if (parameter.get_name() == "color_mode") { new_parameters.color_mode = parameter.as_string(); }
+    // node parameters
+    if (parameter.get_name() == "output_rate" ) { new_node_parameters.output_rate = parameter.as_double(); }
+    else if (parameter.get_name() == "color_mode") { new_parameters.color_mode = parameter.as_string(); }
     else if (parameter.get_name() == "image_width" ) { new_parameters.image_width = parameter.as_int(); }
     else if (parameter.get_name() == "image_height" ) { new_parameters.image_height = parameter.as_int(); }
     else if (parameter.get_name() == "image_left" ) { new_parameters.image_left = parameter.as_int(); }
@@ -722,7 +732,6 @@ rcl_interfaces::msg::SetParametersResult Node::onParameterChange(std::vector<rcl
     else if (parameter.get_name() == "pwm_duty_cycle" ) { new_parameters.pwm_duty_cycle = parameter.as_double(); }
     else if (parameter.get_name() == "auto_frame_rate" ) { new_parameters.auto_frame_rate = parameter.as_bool(); }
     else if (parameter.get_name() == "frame_rate" ) { new_parameters.frame_rate = parameter.as_double(); }
-    else if (parameter.get_name() == "output_rate" ) { new_parameters.output_rate = parameter.as_double(); }
     else if (parameter.get_name() == "pixel_clock" ) { new_parameters.pixel_clock = parameter.as_int(); }
     else if (parameter.get_name() == "flip_vertical" ) { new_parameters.flip_vertical = parameter.as_bool(); }
     else if (parameter.get_name() == "flip_horizontal" ) { new_parameters.flip_horizontal = parameter.as_bool(); }
@@ -740,6 +749,13 @@ rcl_interfaces::msg::SetParametersResult Node::onParameterChange(std::vector<rcl
    *********************/
   try {
     new_parameters.validate();
+    // cross-validation
+    if (new_node_parameters.output_rate > new_parameters.frame_rate) {
+      std::ostringstream ostream;
+      ostream << "\n  requested output_rate exceeds incoming frame_rate ";
+      ostream << "[output_rate: " << new_node_parameters.output_rate << ", " << new_parameters.frame_rate <<"]\n";
+      throw std::invalid_argument(ostream.str());
+    }
   } catch (const std::invalid_argument& e) {
     RCLCPP_WARN(this->get_logger(), "incoming parameter configuration invalid, rejecting\n%s", e.what());
     result.successful = false;
@@ -750,11 +766,16 @@ rcl_interfaces::msg::SetParametersResult Node::onParameterChange(std::vector<rcl
    * Preparation
    *********************/
   bool restart_frame_grabber = false;
+  std::set<std::string> changed_node_parameters;
   std::set<std::string> changed_parameters;
   for (const rclcpp::Parameter& parameter : parameters) {
-    changed_parameters.insert(parameter.get_name());
-    if ( CameraParameters::RestartFrameGrabberSet.find(parameter.get_name()) != CameraParameters::RestartFrameGrabberSet.end() ) {
-      restart_frame_grabber = true;
+    if (parameter.get_name() == "output_name") {
+      changed_node_parameters.insert(parameter.get_name());
+    } else {
+      changed_parameters.insert(parameter.get_name());
+      if ( CameraParameters::RestartFrameGrabberSet.find(parameter.get_name()) != CameraParameters::RestartFrameGrabberSet.end() ) {
+        restart_frame_grabber = true;
+      }
     }
   }
   if (restart_frame_grabber && frame_grab_alive_) {
@@ -764,6 +785,7 @@ rcl_interfaces::msg::SetParametersResult Node::onParameterChange(std::vector<rcl
   /*********************
    * Set Parameters
    *********************/
+  // camera parameters
   try {
     setCamParams(new_parameters, changed_parameters);
   } catch (const std::invalid_argument& e) {
@@ -779,6 +801,14 @@ rcl_interfaces::msg::SetParametersResult Node::onParameterChange(std::vector<rcl
     }
     result.successful = false;
     return result;
+  }
+  // node parameters
+  if ( changed_node_parameters.find("output_rate") != changed_node_parameters.end() ) {
+    node_parameters_.output_rate = new_node_parameters.output_rate;
+    output_rate_mutex_.lock();
+    init_publish_time_ = this->now();
+    prev_output_frame_idx_ = 0;
+    output_rate_mutex_.unlock();
   }
 
   if (restart_frame_grabber) {

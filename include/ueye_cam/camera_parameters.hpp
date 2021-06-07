@@ -145,7 +145,6 @@ struct CameraParameters {
 
   bool auto_frame_rate;             /**< Auto frame rate (requires auto exposure, supercedes auto gain) [not applicable in external trigger mode] */
   double frame_rate;                /**< Frame process rate (Hz) [not applicable in external trigger mode] [min:0.01, max:200.0] */
-  double output_rate;               /**< Frame publish rate (Hz) (0: publish all processed frames) [not applicable in external trigger mode] [min:0, max:200.0] */
   int pixel_clock;                  /**< Pixel clock (MHz) [min: 1, max: 500] */
 
   bool flip_vertical;                    /**< Mirror upside down */
@@ -184,7 +183,6 @@ struct CameraParameters {
     pwm_duty_cycle(0.5),
     auto_frame_rate(false),
     frame_rate(10.0),
-    output_rate(0.0),
     pixel_clock(25),
     flip_vertical(false),
     flip_horizontal(false)
