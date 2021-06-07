@@ -172,7 +172,7 @@ void Driver::disconnectCam() {
 }
 
 
-void Driver::loadCamConfig(string filename) {
+void Driver::loadCamConfig(const std::string& filename) {
   if (!isConnected()) { throw std::runtime_error("camera not connected"); };
 
   INT is_err = IS_SUCCESS;
@@ -182,7 +182,7 @@ void Driver::loadCamConfig(string filename) {
   if ((is_err = is_ParameterSet(cam_handle_, IS_PARAMETERSET_CMD_LOAD_FILE,
       (void*) filenameU.c_str(), 0)) != IS_SUCCESS) {
     ostringstream ostream;
-    ostream << "failed to load IDS camera configuration on the camera [" << filename << "][" << err2str(is_err) << "]";
+    ostream << "failed to load IDS camera configuration [" << filename << "][" << err2str(is_err) << "]";
     throw std::runtime_error(ostream.str());
   } else {
     // Pull back the configuration from the camera, update internal state and reallocate buffers.
@@ -193,6 +193,17 @@ void Driver::loadCamConfig(string filename) {
       ostream << "failed to synchronize after loading camera configuration [" << filename << "]";
       std::throw_with_nested(std::runtime_error(ostream.str()));
     }
+  }
+}
+
+void Driver::saveCamConfig(const std::string& filename) {
+  if (!isConnected()) { throw std::runtime_error("camera not connected"); };
+  const wstring filenameU(filename.begin(), filename.end());
+  INT is_err = IS_SUCCESS;
+  if((is_err = is_ParameterSet(cam_handle_, IS_PARAMETERSET_CMD_SAVE_FILE, (void*)filenameU.c_str(), 0)) != IS_SUCCESS) {
+    ostringstream ostream;
+    ostream << "failed to export IDS camera configuration [" << filename << "][" << err2str(is_err) << "]";
+    throw std::runtime_error(ostream.str());
   }
 }
 

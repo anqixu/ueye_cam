@@ -63,7 +63,8 @@ struct NodeParameters {
   std::string topic_name;
   double output_rate;  /**< Topic publishing rate (Hz) (0: publish all processed frames) [min:0, max:200.0] */
   std::string camera_intrinsics_filename;
-  std::string camera_parameters_filename;
+  std::string ids_configuration_filename;
+  bool export_ids_configuration;
 
   NodeParameters():
     camera_name("camera"),
@@ -72,7 +73,8 @@ struct NodeParameters {
     topic_name("image_raw"),
     output_rate(0.0),
     camera_intrinsics_filename(""),
-    camera_parameters_filename("")
+    ids_configuration_filename(""),
+    export_ids_configuration(false)
   {}
 
   void validate() const {
@@ -93,7 +95,7 @@ struct NodeParameters {
     ostream << "  Topic Name:\t\t\t" << topic_name << "\n";
     ostream << "  Output Rate:\t\t\t" << output_rate << "\n";
     ostream << "  Intrinsics Filename:\t\t" << camera_intrinsics_filename << "\n";
-    ostream << "  Parameters Filename:\t\t" << camera_parameters_filename << "\n";
+    ostream << "  Parameters Filename:\t\t" << ids_configuration_filename << "\n";
     return ostream.str();
   }
 };

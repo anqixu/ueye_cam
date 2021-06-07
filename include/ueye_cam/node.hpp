@@ -100,6 +100,7 @@ private:
   rcl_interfaces::msg::SetParametersResult onParameterChange(std::vector<rclcpp::Parameter> parameters); /**< Dynamic parameter callback **/
 
   NodeParameters node_parameters_;
+  std::mutex parameter_mutex_;
 
   /********************************************
    * Non-Parameter Initialisation
@@ -125,7 +126,7 @@ private:
   std::thread frame_grab_thread_;
   bool frame_grab_alive_;
   std::mutex output_rate_mutex_;
-  std::mutex parameter_mutex_;
+  std::mutex interactive_mutex_;
 
 //
 //  /**

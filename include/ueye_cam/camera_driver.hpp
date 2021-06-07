@@ -110,7 +110,15 @@ public:
    *
    * @throw runtime_error if an error occurs retrieving the information from the camera
    */
-  void loadCamConfig(std::string filename);
+  void loadCamConfig(const std::string& filename);
+
+  /** @brief Export a UEye camera parameter configuration INI.
+   *
+   * \param filename Relative or absolute path to UEye camera configuration file.
+   *
+   * @throw runtime_error if an error occurs exporting the configuration from the camera
+   */
+  void saveCamConfig(const std::string& filename);
 
   /**
    * Updates current camera handle's color mode, udpate driver

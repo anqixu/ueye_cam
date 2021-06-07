@@ -66,7 +66,7 @@ In a typical launch, configuration can be traced to one or more sources, each wi
 can be overridden by higher priorities. From lowest, to highest:
 
 * _Defaults_ : refer to `ueye_cam/node_parameters.hpp` and `ueye_cam/camera_parameters.hpp`
-* _IDS_ : defined in `node_parameters.camera_parameters_filename`
+* _IDS_ : defined in `node_parameters.ids_configuration_filename`
     * If none is set, the default `~/.ros/camera_conf/<camera_name>.ini` is used
 * _On-Launch_ : usually passed in via `.yaml` to the launcher / command line
 * _Dynamic_ : modified on the fly at runtime

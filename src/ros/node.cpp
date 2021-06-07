@@ -197,10 +197,10 @@ Node::Node(const rclcpp::NodeOptions & options):
 
   // Camera Parameterisation
   CameraParameters default_camera_parameters, camera_parameters;
-  if (std::ifstream(node_parameters_.camera_parameters_filename.c_str()).good()) {
+  if (std::ifstream(node_parameters_.ids_configuration_filename.c_str()).good()) {
     // If using an IDS configuration, load that and read it back first before engaging further
     try {
-      loadCamConfig(node_parameters_.camera_parameters_filename);
+      loadCamConfig(node_parameters_.ids_configuration_filename);
     } catch (const std::runtime_error& e) {
       std::ostringstream ostream;
       ostream << "failed to load IDS configuration on camera '" << node_parameters_.camera_name << "', aborting.";
@@ -341,6 +341,16 @@ void Node::frameGrabLoop() {
   int prevNumSubscribers = 0;
   unsigned int currNumSubscribers = 0;
   while (frame_grab_alive_ && rclcpp::ok()) {
+
+    // Disable interactive parameters
+    {
+      std::lock_guard<std::mutex> guard{interactive_mutex_};
+      if ( node_parameters_.export_ids_configuration ) {
+        // Don't wait for the callback to revert the flag, it might inadvertently hit this code snippet twice
+        node_parameters_.export_ids_configuration = false;
+        this->set_parameter(rclcpp::Parameter("export_ids_configuration", false));
+      }
+    }
 
     // Workaround for https://github.com/ros-perception/image_common/issues/114. Reinstate the line below when fixed.
     // currNumSubscribers = ros_cam_pub_.getNumSubscribers();
@@ -566,14 +576,20 @@ bool Node::fillMsgData(sensor_msgs::msg::Image& img) const {
  *****************************************************************************/
 
 void Node::declareROSNodeParameters(const NodeParameters& defaults) {
-  // Declare Node Specific / Camera Agnostic Parameters
+
+  // Node Specific / Camera Agnostic parameters
+
+  // Configurable parameters
   this->declare_parameter("camera_name",                rclcpp::ParameterValue(defaults.camera_name));
   this->declare_parameter("camera_id",                  rclcpp::ParameterValue(defaults.camera_id));
   this->declare_parameter("frame_name",                 rclcpp::ParameterValue(defaults.frame_name));
   this->declare_parameter("topic_name",                 rclcpp::ParameterValue(defaults.topic_name));
   this->declare_parameter("output_rate",                rclcpp::ParameterValue(defaults.output_rate));
   this->declare_parameter("camera_intrinsics_filename", rclcpp::ParameterValue(defaults.camera_intrinsics_filename));
-  this->declare_parameter("camera_parameters_filename", rclcpp::ParameterValue(defaults.camera_parameters_filename));
+  this->declare_parameter("ids_configuration_filename", rclcpp::ParameterValue(defaults.ids_configuration_filename));
+
+  // Interactive parameters
+  this->declare_parameter("export_ids_configuration",   rclcpp::ParameterValue(false));
 }
 
 
@@ -625,7 +641,7 @@ const NodeParameters Node::fetchROSNodeParameters() const {
   this->get_parameter<std::string>("topic_name",                 parameters.topic_name);
   this->get_parameter<double>("output_rate",                     parameters.output_rate);
   this->get_parameter<std::string>("camera_intrinsics_filename", parameters.camera_intrinsics_filename);
-  this->get_parameter<std::string>("camera_parameters_filename", parameters.camera_parameters_filename);
+  this->get_parameter<std::string>("ids_configuration_filename", parameters.ids_configuration_filename);
 
   // Configure default filenames if none were specified
   // Do here rather than at declaration since it depends on camera_name
@@ -635,8 +651,8 @@ const NodeParameters Node::fetchROSNodeParameters() const {
   if (parameters.camera_intrinsics_filename.length() <= 0) {
     parameters.camera_intrinsics_filename = root + "/camera_info/" + parameters.camera_name + ".yaml";
   }
-  if (parameters.camera_parameters_filename.length() <= 0) {
-    parameters.camera_parameters_filename = root + "/camera_conf/" + parameters.camera_name + ".ini";
+  if (parameters.ids_configuration_filename.length() <= 0) {
+    parameters.ids_configuration_filename = root + "/camera_conf/" + parameters.camera_name + ".ini";
   }
   return parameters;
 }
@@ -707,6 +723,7 @@ rcl_interfaces::msg::SetParametersResult Node::onParameterChange(std::vector<rcl
     return result;
   }
 
+  bool export_ids_configuration = false;
   output_rate_mutex_.lock();
   double new_output_rate = node_parameters_.output_rate;
   output_rate_mutex_.unlock();
@@ -719,6 +736,8 @@ rcl_interfaces::msg::SetParametersResult Node::onParameterChange(std::vector<rcl
   for (const rclcpp::Parameter& parameter : parameters) {
     // node parameters
     if (parameter.get_name() == "output_rate" ) { new_output_rate = parameter.as_double(); }
+    // interactive parameters
+    else if (parameter.get_name() == "export_ids_configuration") { export_ids_configuration = parameter.as_bool(); }
     // camera parameters
     else if (parameter.get_name() == "color_mode") { new_parameters.color_mode = parameter.as_string(); }
     else if (parameter.get_name() == "image_width" ) { new_parameters.image_width = parameter.as_int(); }
@@ -790,6 +809,8 @@ rcl_interfaces::msg::SetParametersResult Node::onParameterChange(std::vector<rcl
   for (const rclcpp::Parameter& parameter : parameters) {
     if (parameter.get_name() == "output_name") {
       changed_node_parameters.insert(parameter.get_name());
+    } else  if (parameter.get_name() == "export_ids_configuration") { // Don't register interactive parameter changes
+      // changed_node_parameters.insert(parameter.get_name());
     } else {
       changed_parameters.insert(parameter.get_name());
       if ( CameraParameters::RestartFrameGrabberSet.find(parameter.get_name()) != CameraParameters::RestartFrameGrabberSet.end() ) {
@@ -836,7 +857,29 @@ rcl_interfaces::msg::SetParametersResult Node::onParameterChange(std::vector<rcl
     startFrameGrabber();
   }
 
-  printConfiguration(); // debugging
+  /******************************************
+   * Interactive Parameters
+   ******************************************/
+  if ( export_ids_configuration ) {
+    std::lock_guard<std::mutex> guard{interactive_mutex_};
+    try {
+      // TODO: check if the dir exists, create it if needed
+      saveCamConfig(node_parameters_.ids_configuration_filename);
+      node_parameters_.export_ids_configuration = true; // flag to inform the loop to unset the parameter
+      RCLCPP_INFO(this->get_logger(), "exported IDS configuration to '%s'", node_parameters_.ids_configuration_filename.c_str());
+    } catch (const std::runtime_error& e) {
+      RCLCPP_ERROR(this->get_logger(), "%s [hint: has the directory been created?]", e.what());
+      result.successful = false;
+      return result;
+    }
+  } else {
+    // The frame grabbing loop will have reverted the setting, nothing to do
+  }
+
+  // Don't print the updated configuration if it's just the export_ids_configuration flag setting/resetting
+  if ( (! changed_node_parameters.empty()) || (!changed_parameters.empty()) ) {
+    printConfiguration(); // debugging
+  }
   return result;
 }
 
