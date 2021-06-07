@@ -5,8 +5,7 @@ ueye_cam:
     #  - ueye_cam/node_parameters.hpp
     camera_name: froody
     frame_name: froody
-    camera_id: 1
+    camera_id: 0                # 0 : ANY_CAMERA
     color_mode: rgb8
     auto_gain: true
-    # green_gain: 15
     auto_white_balance: true
