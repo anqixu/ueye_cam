@@ -42,9 +42,8 @@
 
 
 int main(int argc, char** argv) {
-	bool sdk_version;
-	int camera_id;
-
+    bool sdk_version = 0.00;
+    int camera_id = 0;
 
     try {
         TCLAP::CmdLine cmd("Standalone ueye_cam driver check (non-ros).", ' ', "0.1");
