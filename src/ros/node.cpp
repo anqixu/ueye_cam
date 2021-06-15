@@ -734,6 +734,7 @@ rcl_interfaces::msg::SetParametersResult Node::onParameterChange(std::vector<rcl
   parameter_mutex_.unlock();
 
   for (const rclcpp::Parameter& parameter : parameters) {
+    try{
     // node parameters
     if (parameter.get_name() == "output_rate" ) { new_output_rate = parameter.as_double(); }
     // interactive parameters
@@ -774,7 +775,11 @@ rcl_interfaces::msg::SetParametersResult Node::onParameterChange(std::vector<rcl
     else if (parameter.get_name() == "flip_vertical" ) { new_parameters.flip_vertical = parameter.as_bool(); }
     else if (parameter.get_name() == "flip_horizontal" ) { new_parameters.flip_horizontal = parameter.as_bool(); }
     else {
-      RCLCPP_WARN(this->get_logger(), "[%s] is not a reconfigurable parameter, rejecting.", parameter.get_name());
+      RCLCPP_WARN(this->get_logger(), "[%s] is not a reconfigurable parameter, rejecting.", parameter.get_name().c_str());
+      result.successful = false;
+    }
+    }catch(const rclcpp::ParameterTypeException& e) {
+      RCLCPP_WARN(this->get_logger(), "Invalid parameter value type [%s] for parameter [%s], rejecting.", parameter.get_type_name().c_str(), parameter.get_name().c_str());
       result.successful = false;
     }
   }
