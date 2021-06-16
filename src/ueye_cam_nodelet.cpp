@@ -1258,7 +1258,7 @@ bool UEyeCamNodelet::fillMsgData(sensor_msgs::Image& img) const {
   } else { // cam_buffer_pitch_ > expected_row_stride
     // Each row contains extra buffer according to cam_buffer_pitch_, so must copy out each row independently
     uint8_t* dst_ptr = img.data.data();
-    char* cam_buffer_ptr = cam_buffer_ + cam_aoi_.s32X + (cam_aoi_.s32Y * cam_buffer_pitch_);
+    char* cam_buffer_ptr = cam_buffer_;
     for (INT row = 0; row < cam_aoi_.s32Height; row++) {
       unpackCopy(dst_ptr, cam_buffer_ptr, static_cast<unsigned long>(expected_row_stride));
       cam_buffer_ptr += cam_buffer_pitch_;

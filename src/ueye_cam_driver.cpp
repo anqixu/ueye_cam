@@ -1074,6 +1074,41 @@ INT UEyeCamDriver::syncCamConfig(string dft_mode_str) {
       cam_name_ << "] (" << err2str(is_err) << ")");
     return is_err;
   }
+
+  UINT start_posX_absolute = 0;
+  UINT start_posY_absolute = 0;
+  bool resetResolutionRequired = false;
+
+  if ((is_err = is_AOI(cam_handle_, IS_AOI_IMAGE_GET_POS_X_ABS,
+      (void*) &start_posX_absolute, sizeof(start_posX_absolute))) != IS_SUCCESS) {
+    ERROR_STREAM("Could not retrieve Area Of Interest (AOI) information for parameter start X absolute for[" <<
+      cam_name_ << "] (" << err2str(is_err) << ")");
+    return is_err;
+  }
+
+  if (start_posX_absolute == IS_AOI_IMAGE_POS_ABSOLUTE) {
+    cam_aoi_.s32X = 0;
+    resetResolutionRequired = true;
+  }
+
+  if ((is_err = is_AOI(cam_handle_, IS_AOI_IMAGE_GET_POS_Y_ABS,
+      (void*) &start_posY_absolute, sizeof(start_posY_absolute))) != IS_SUCCESS) {
+    ERROR_STREAM("Could not retrieve Area Of Interest (AOI) information for parameter start Y absolute for[" <<
+      cam_name_ << "] (" << err2str(is_err) << ")");
+    return is_err;
+  }
+
+  if (start_posY_absolute == IS_AOI_IMAGE_POS_ABSOLUTE) {
+    cam_aoi_.s32Y = 0;
+    resetResolutionRequired = true;
+  }
+
+  if (resetResolutionRequired) {
+    WARN_STREAM("Ignore absolute start X and Y parameter for[" << cam_name_ << "]");
+    if ((is_err = setResolution(cam_aoi_.s32Width, cam_aoi_.s32Height,
+      cam_aoi_.s32X, cam_aoi_.s32Y, false)) != IS_SUCCESS) return is_err;
+  }
+  
   color_mode_ = is_SetColorMode(cam_handle_, IS_GET_COLOR_MODE);
   if (!isSupportedColorMode(color_mode_)) {
     WARN_STREAM("Current color mode (IDS format: " << colormode2str(color_mode_)
@@ -1173,53 +1208,11 @@ INT UEyeCamDriver::reallocateCamBuffer() {
       cam_name_ << "] (" << err2str(is_err) << ")");
     return is_err;
   }
-
-  INT width = cam_aoi_.s32Width  ;
-  INT height = cam_aoi_.s32Height ;
-
-  UINT start_posX_absolute = 0;
-  UINT start_posY_absolute = 0;
-
-  if ((is_err = is_AOI(cam_handle_, IS_AOI_IMAGE_GET_POS_X_ABS,
-      (void*) &start_posX_absolute, sizeof(start_posX_absolute))) != IS_SUCCESS) {
-    ERROR_STREAM("Could not retrieve Area Of Interest (AOI) information for parameter start X absolute for[" <<
-      cam_name_ << "] (" << err2str(is_err) << ")");
-    return is_err;
-  }
-
-  if ((is_err = is_AOI(cam_handle_, IS_AOI_IMAGE_GET_POS_Y_ABS,
-      (void*) &start_posY_absolute, sizeof(start_posY_absolute))) != IS_SUCCESS) {
-    ERROR_STREAM("Could not retrieve Area Of Interest (AOI) information for parameter start Y absolute for[" <<
-      cam_name_ << "] (" << err2str(is_err) << ")");
-    return is_err;
-  }
-
-  if ((start_posX_absolute == IS_AOI_IMAGE_POS_ABSOLUTE) ||
-      (start_posY_absolute == IS_AOI_IMAGE_POS_ABSOLUTE))
-  {
-    SENSORINFO m_sInfo;
-    
-    if((is_err = is_GetSensorInfo(cam_handle_, &m_sInfo)) != IS_SUCCESS ) {
-      ERROR_STREAM("Could not retrieve Sensor Info for [" <<
-        cam_name_ << "] (" << err2str(is_err) << ")");
-      return is_err;
-    }
-
-    if ((start_posX_absolute == IS_AOI_IMAGE_POS_ABSOLUTE) && (cam_aoi_.s32X > 0))
-    {
-      width = m_sInfo.nMaxWidth;
-    }
-
-    if ((start_posY_absolute == IS_AOI_IMAGE_POS_ABSOLUTE) && (cam_aoi_.s32Y > 0))
-    {
-      height = m_sInfo.nMaxHeight;
-    }
-  }
   
   // Allocate new memory section for IDS driver to use as frame buffer
-  if ((is_err = is_AllocImageMem(cam_handle_, width , height,
+  if ((is_err = is_AllocImageMem(cam_handle_, cam_aoi_.s32Width , cam_aoi_.s32Height,
     bits_per_pixel_, &cam_buffer_, &cam_buffer_id_)) != IS_SUCCESS) {
-    ERROR_STREAM("Failed to allocate " << width << " x " << height <<
+    ERROR_STREAM("Failed to allocate " << cam_aoi_.s32Width << " x " << cam_aoi_.s32Height <<
       " image buffer for [" << cam_name_ << "]");
     return is_err;
   }
