@@ -734,47 +734,52 @@ rcl_interfaces::msg::SetParametersResult Node::onParameterChange(std::vector<rcl
   parameter_mutex_.unlock();
 
   for (const rclcpp::Parameter& parameter : parameters) {
-    // node parameters
-    if (parameter.get_name() == "output_rate" ) { new_output_rate = parameter.as_double(); }
-    // interactive parameters
-    else if (parameter.get_name() == "export_ids_configuration") { export_ids_configuration = parameter.as_bool(); }
-    // camera parameters
-    else if (parameter.get_name() == "color_mode") { new_parameters.color_mode = parameter.as_string(); }
-    else if (parameter.get_name() == "image_width" ) { new_parameters.image_width = parameter.as_int(); }
-    else if (parameter.get_name() == "image_height" ) { new_parameters.image_height = parameter.as_int(); }
-    else if (parameter.get_name() == "image_left" ) { new_parameters.image_left = parameter.as_int(); }
-    else if (parameter.get_name() == "image_top" ) { new_parameters.image_top = parameter.as_int(); }
-    else if (parameter.get_name() == "subsampling" ) { new_parameters.subsampling = parameter.as_int(); }
-    else if (parameter.get_name() == "binning" ) { new_parameters.binning = parameter.as_int(); }
-    else if (parameter.get_name() == "sensor_scaling" ) { new_parameters.sensor_scaling = parameter.as_double(); }
-    else if (parameter.get_name() == "auto_gain" ) { new_parameters.auto_gain = parameter.as_bool(); }
-    else if (parameter.get_name() == "master_gain" ) { new_parameters.master_gain = parameter.as_int(); }
-    else if (parameter.get_name() == "red_gain" ) { new_parameters.red_gain = parameter.as_int(); }
-    else if (parameter.get_name() == "green_gain" ) { new_parameters.green_gain = parameter.as_int(); }
-    else if (parameter.get_name() == "blue_gain" ) { new_parameters.blue_gain = parameter.as_int(); }
-    else if (parameter.get_name() == "gain_boost" ) { new_parameters.gain_boost = parameter.as_bool(); }
-    else if (parameter.get_name() == "software_gamma" ) { new_parameters.software_gamma = parameter.as_int(); }
-    else if (parameter.get_name() == "auto_exposure" ) { new_parameters.auto_exposure = parameter.as_bool(); }
-    else if (parameter.get_name() == "auto_exposure_reference" ) { new_parameters.auto_exposure_reference = parameter.as_double(); }
-    else if (parameter.get_name() == "exposure" ) { new_parameters.exposure = parameter.as_double(); }
-    else if (parameter.get_name() == "auto_white_balance" ) { new_parameters.auto_white_balance = parameter.as_bool(); }
-    else if (parameter.get_name() == "white_balance_red_offset" ) { new_parameters.white_balance_red_offset = parameter.as_int(); }
-    else if (parameter.get_name() == "white_balance_blue_offset" ) { new_parameters.white_balance_blue_offset = parameter.as_int(); }
-    else if (parameter.get_name() == "flash_delay" ) { new_parameters.flash_delay = parameter.as_int(); }
-    else if (parameter.get_name() == "flash_duration" ) { new_parameters.flash_duration = parameter.as_int(); }
-    else if (parameter.get_name() == "ext_trigger_mode" ) { new_parameters.ext_trigger_mode = parameter.as_bool(); }
-    else if (parameter.get_name() == "trigger_rising_edge" ) { new_parameters.trigger_rising_edge = parameter.as_bool(); }
-    else if (parameter.get_name() == "gpio1" ) { new_parameters.gpio1 = parameter.as_int(); }
-    else if (parameter.get_name() == "gpio2" ) { new_parameters.gpio2 = parameter.as_int(); }
-    else if (parameter.get_name() == "pwm_freq" ) { new_parameters.pwm_freq = parameter.as_double(); }
-    else if (parameter.get_name() == "pwm_duty_cycle" ) { new_parameters.pwm_duty_cycle = parameter.as_double(); }
-    else if (parameter.get_name() == "auto_frame_rate" ) { new_parameters.auto_frame_rate = parameter.as_bool(); }
-    else if (parameter.get_name() == "frame_rate" ) { new_parameters.frame_rate = parameter.as_double(); }
-    else if (parameter.get_name() == "pixel_clock" ) { new_parameters.pixel_clock = parameter.as_int(); }
-    else if (parameter.get_name() == "flip_vertical" ) { new_parameters.flip_vertical = parameter.as_bool(); }
-    else if (parameter.get_name() == "flip_horizontal" ) { new_parameters.flip_horizontal = parameter.as_bool(); }
-    else {
-      RCLCPP_WARN(this->get_logger(), "[%s] is not a reconfigurable parameter, rejecting.", parameter.get_name());
+    try {
+      // node parameters
+      if (parameter.get_name() == "output_rate" ) { new_output_rate = parameter.as_double(); }
+      // interactive parameters
+      else if (parameter.get_name() == "export_ids_configuration") { export_ids_configuration = parameter.as_bool(); }
+      // camera parameters
+      else if (parameter.get_name() == "color_mode") { new_parameters.color_mode = parameter.as_string(); }
+      else if (parameter.get_name() == "image_width" ) { new_parameters.image_width = parameter.as_int(); }
+      else if (parameter.get_name() == "image_height" ) { new_parameters.image_height = parameter.as_int(); }
+      else if (parameter.get_name() == "image_left" ) { new_parameters.image_left = parameter.as_int(); }
+      else if (parameter.get_name() == "image_top" ) { new_parameters.image_top = parameter.as_int(); }
+      else if (parameter.get_name() == "subsampling" ) { new_parameters.subsampling = parameter.as_int(); }
+      else if (parameter.get_name() == "binning" ) { new_parameters.binning = parameter.as_int(); }
+      else if (parameter.get_name() == "sensor_scaling" ) { new_parameters.sensor_scaling = parameter.as_double(); }
+      else if (parameter.get_name() == "auto_gain" ) { new_parameters.auto_gain = parameter.as_bool(); }
+      else if (parameter.get_name() == "master_gain" ) { new_parameters.master_gain = parameter.as_int(); }
+      else if (parameter.get_name() == "red_gain" ) { new_parameters.red_gain = parameter.as_int(); }
+      else if (parameter.get_name() == "green_gain" ) { new_parameters.green_gain = parameter.as_int(); }
+      else if (parameter.get_name() == "blue_gain" ) { new_parameters.blue_gain = parameter.as_int(); }
+      else if (parameter.get_name() == "gain_boost" ) { new_parameters.gain_boost = parameter.as_bool(); }
+      else if (parameter.get_name() == "software_gamma" ) { new_parameters.software_gamma = parameter.as_int(); }
+      else if (parameter.get_name() == "auto_exposure" ) { new_parameters.auto_exposure = parameter.as_bool(); }
+      else if (parameter.get_name() == "auto_exposure_reference" ) { new_parameters.auto_exposure_reference = parameter.as_double(); }
+      else if (parameter.get_name() == "exposure" ) { new_parameters.exposure = parameter.as_double(); }
+      else if (parameter.get_name() == "auto_white_balance" ) { new_parameters.auto_white_balance = parameter.as_bool(); }
+      else if (parameter.get_name() == "white_balance_red_offset" ) { new_parameters.white_balance_red_offset = parameter.as_int(); }
+      else if (parameter.get_name() == "white_balance_blue_offset" ) { new_parameters.white_balance_blue_offset = parameter.as_int(); }
+      else if (parameter.get_name() == "flash_delay" ) { new_parameters.flash_delay = parameter.as_int(); }
+      else if (parameter.get_name() == "flash_duration" ) { new_parameters.flash_duration = parameter.as_int(); }
+      else if (parameter.get_name() == "ext_trigger_mode" ) { new_parameters.ext_trigger_mode = parameter.as_bool(); }
+      else if (parameter.get_name() == "trigger_rising_edge" ) { new_parameters.trigger_rising_edge = parameter.as_bool(); }
+      else if (parameter.get_name() == "gpio1" ) { new_parameters.gpio1 = parameter.as_int(); }
+      else if (parameter.get_name() == "gpio2" ) { new_parameters.gpio2 = parameter.as_int(); }
+      else if (parameter.get_name() == "pwm_freq" ) { new_parameters.pwm_freq = parameter.as_double(); }
+      else if (parameter.get_name() == "pwm_duty_cycle" ) { new_parameters.pwm_duty_cycle = parameter.as_double(); }
+      else if (parameter.get_name() == "auto_frame_rate" ) { new_parameters.auto_frame_rate = parameter.as_bool(); }
+      else if (parameter.get_name() == "frame_rate" ) { new_parameters.frame_rate = parameter.as_double(); }
+      else if (parameter.get_name() == "pixel_clock" ) { new_parameters.pixel_clock = parameter.as_int(); }
+      else if (parameter.get_name() == "flip_vertical" ) { new_parameters.flip_vertical = parameter.as_bool(); }
+      else if (parameter.get_name() == "flip_horizontal" ) { new_parameters.flip_horizontal = parameter.as_bool(); }
+      else {
+        RCLCPP_WARN(this->get_logger(), "[%s] is not a reconfigurable parameter, rejecting.", parameter.get_name().c_str());
+        result.successful = false;
+      }
+    } catch(const rclcpp::ParameterTypeException& e) {
+      RCLCPP_WARN(this->get_logger(), "Invalid parameter value type [%s] for parameter [%s], rejecting.", parameter.get_type_name().c_str(), parameter.get_name().c_str());
       result.successful = false;
     }
   }
