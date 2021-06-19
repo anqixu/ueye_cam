@@ -82,6 +82,15 @@ install(
 )
 
 ##############################################################################
+# Components
+##############################################################################
+
+# This macro only works, when in the project's root CMakeLists.txt. When
+# used in a nested CMakeLists.txt, the markers failed to be installed in
+# share/ament_index/resource_index/rclcpp_components/ueye_cam
+rclcpp_components_register_nodes(${PROJECT_NAME}_ros "ueye_cam::Node")
+
+##############################################################################
 # Exports
 ##############################################################################
 
@@ -91,7 +100,6 @@ ament_export_interfaces(HAS_LIBRARY_TARGET ${PROJECT_NAME}) # Dashing
 
 # CMake2 exports
 ament_export_include_directories(include)
-
 ament_export_dependencies(
   camera_calibration_parsers
   camera_info_manager

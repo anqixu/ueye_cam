@@ -1,14 +1,8 @@
 ###############################################################################
-# Sources
-###############################################################################
-
-file(GLOB SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.cpp)
-
-###############################################################################
 # Targets
 ###############################################################################
-   
-add_library(${PROJECT_NAME}_ros SHARED ${SOURCES})
+
+add_library(${PROJECT_NAME}_ros SHARED node.cpp)
 
 target_include_directories(
   ${PROJECT_NAME}_ros
@@ -32,9 +26,6 @@ ament_target_dependencies(
 # Modern CMake Linking
 target_link_libraries(${PROJECT_NAME}_ros
     ${PROJECT_NAME}_driver
-#   ecl_exceptions::ecl_exceptions
-#   ecl_formatters::ecl_formatters
-#   ecl_geometry::ecl_geometry
 )
 
 set_target_properties(${PROJECT_NAME}_ros
@@ -55,7 +46,3 @@ install(
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
 )
-
- rclcpp_components_register_nodes(${PROJECT_NAME}_ros
-   "ueye_cam::Node"
- )

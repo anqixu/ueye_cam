@@ -37,7 +37,7 @@
 ##############################################################################
 
 """
-Launch the ueye_cam standalone node.
+Launch the ueye_cam as a component.
 """
 ##############################################################################
 # Imports
@@ -50,6 +50,7 @@ import yaml
 
 import launch
 import launch_ros.actions
+import launch_ros.descriptions
 
 ##############################################################################
 # Helpers
@@ -70,21 +71,29 @@ def load_parameters() -> str:
 
 def generate_launch_description() -> launch.LaunchDescription:
     """
-    Launch the standalone node.
+    Launch the ueye cam component in a container.
 
     Returns:
         the launch description
     """
     launch_nodes = []
     launch_nodes.append(
-        launch_ros.actions.Node(
-            package='ueye_cam',
-            name="ueye",
-            node_executable="standalone_node",  # TODO: rename to 'executable' in foxy
+         launch_ros.actions.ComposableNodeContainer(
+            node_name='cameras',
+            node_namespace='',
+            package='rclcpp_components',
+            node_executable='component_container',
+            composable_node_descriptions=[
+                launch_ros.descriptions.ComposableNode(
+                    package='ueye_cam',
+                    node_plugin='ueye_cam::Node',
+                    node_name='ueye_cam',
+                    parameters=[load_parameters()]
+                ),
+            ],
             output='screen',  # 'both'?
             prefix=['stdbuf -o L'],
             # emulate_tty=True,  # TODO: in foxy this can be used to replace the prefix workaround
-            parameters=[load_parameters()]
         )
     )
     launch_nodes.append(

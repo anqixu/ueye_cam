@@ -1,21 +1,7 @@
 /*******************************************************************************
-* DO NOT MODIFY - AUTO-GENERATED
-*
-*
-* DISCLAMER:
-*
-* This project was created within an academic research setting, and thus should
-* be considered as EXPERIMENTAL code. There may be bugs and deficiencies in the
-* code, so please adjust expectations accordingly. With that said, we are
-* intrinsically motivated to ensure its correctness (and often its performance).
-* Please use the corresponding web repository tool (e.g. github/bitbucket/etc.)
-* to file bugs, suggestions, pull requests; we will do our best to address them
-* in a timely manner.
-*
-*
 * SOFTWARE LICENSE AGREEMENT (BSD LICENSE):
 *
-* Copyright (c) 2013-2016, Anqi Xu and contributors
+* Copyright (c) 2013-2021, Anqi Xu and contributors
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -56,7 +42,10 @@
 ** Includes
 *****************************************************************************/
 
-// #include "ueye_cam/logging_macros.hpp"
-// #include "ueye_cam/ueye_cam_driver.hpp"
+#include "ueye_cam/camera_driver.hpp"
+#include "ueye_cam/camera_parameters.hpp"
+#include "ueye_cam/node_parameters.hpp"
+#include "ueye_cam/node.hpp"
+#include "ueye_cam/utilities.hpp"
 
 #endif /* UEYE_CAM_HPP_ */
