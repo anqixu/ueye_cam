@@ -51,7 +51,7 @@
 #include <memory>
 #include <sstream>
 
-#include <camera_calibration_parsers/parse.h>
+#include <camera_calibration_parsers/parse.hpp>
 #include <rcl_interfaces/msg/parameter_type.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
@@ -257,8 +257,10 @@ Node::Node(const rclcpp::NodeOptions & options):
   // here since it lets a batched configuration be pre-tested that will fail
   // hard and fast with useful warning messages.
 
-  // TODO: foxy, this becomes add_on_set_parameters_callback
-  this->set_on_parameters_set_callback(
+  // Dashing: set_on_parameters_set_callback
+  // Foxy: add_on_set_parameters_callback
+  // Handler needs to be alive to keep the callback functional
+  parameter_callback_handler_ = this->add_on_set_parameters_callback(
       std::bind(&Node::onParameterChange, this, std::placeholders::_1)
   );
 }

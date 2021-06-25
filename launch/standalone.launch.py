@@ -63,7 +63,7 @@ def load_parameters() -> str:
     # When starting a *composed* node on the other hand, only the dictionary
     # style is supported.  To keep the code between the non-composed and
     # composed launch file similar, we use that style here as well.
-    parameters_file = os.path.join(share_dir, 'config', 'standalone.yaml')
+    parameters_file = os.path.join(share_dir, 'config', 'example.yaml')
     with open(parameters_file, 'r') as f:
         parameters = yaml.safe_load(f)['ueye_cam']['ros__parameters']
     return parameters
@@ -80,10 +80,9 @@ def generate_launch_description() -> launch.LaunchDescription:
         launch_ros.actions.Node(
             package='ueye_cam',
             name="ueye",
-            node_executable="standalone_node",  # TODO: rename to 'executable' in foxy
+            executable="standalone_node",  # dashing: node_executable, foxy: executable
             output='screen',  # 'both'?
-            prefix=['stdbuf -o L'],
-            # emulate_tty=True,  # TODO: in foxy this can be used to replace the prefix workaround
+            emulate_tty=True,  # dashing: prefix=['stdbuf -o L'], foxy, just use emulate_tty=True
             parameters=[load_parameters()]
         )
     )

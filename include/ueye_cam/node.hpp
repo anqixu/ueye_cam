@@ -42,9 +42,7 @@
 #include <thread>
 #include <vector>
 
-// #include <boost/thread/mutex.hpp>
-
-#include <image_transport/image_transport.h>
+#include <image_transport/image_transport.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
@@ -101,6 +99,7 @@ private:
 
   NodeParameters node_parameters_;
   std::mutex parameter_mutex_;
+  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr parameter_callback_handler_;
 
   /********************************************
    * Non-Parameter Initialisation
@@ -127,13 +126,6 @@ private:
   bool frame_grab_alive_;
   std::mutex output_rate_mutex_;
   std::mutex interactive_mutex_;
-
-//
-//  /**
-//   * Loads, validates, and updates static ROS parameters.
-//   */
-//  INT parseROSParams(ros::NodeHandle& local_nh);
-
 
   /********************************************
    * TimeStamping

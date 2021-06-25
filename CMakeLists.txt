@@ -48,10 +48,12 @@ find_library(UEYE_LIBRARY ueye_api)
 find_path(UEYE_INCLUDE_DIR ueye.h)
 if(UEYE_LIBRARY)
   message(STATUS "Found 'official' ueye_drivers")
+  option(UEYE_FOUND 1)
 else(UEYE_LIBRARY)
   include(cmake_modules/DownloadUEyeDriversUnofficial.cmake)
   download_ueye_drivers(UEYE_LIBRARY UEYE_INCLUDE_DIR ${UEYE_DRIVER_DIR})
 endif()
+message(STATUS "  UEYE_FOUND: ${UEYE_FOUND}")
 message(STATUS "  UEYE_LIBRARY: ${UEYE_LIBRARY}")
 message(STATUS "  UEYE_INCLUDE_DIR: ${UEYE_INCLUDE_DIR}")
 
@@ -95,8 +97,8 @@ rclcpp_components_register_nodes(${PROJECT_NAME}_ros "ueye_cam::Node")
 ##############################################################################
 
 # Modern CMake (CMake3) exports
-ament_export_interfaces(HAS_LIBRARY_TARGET ${PROJECT_NAME}) # Dashing
-# ament_export_targets(HAS_LIBRARY_TARGET ${PROJECT_NAME})  # Foxy+
+# ament_export_interfaces(HAS_LIBRARY_TARGET ${PROJECT_NAME}) # Dashing
+ament_export_targets(HAS_LIBRARY_TARGET ${PROJECT_NAME})  # Foxy+
 
 # CMake2 exports
 ament_export_include_directories(include)

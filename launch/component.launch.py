@@ -64,7 +64,7 @@ def load_parameters() -> str:
     # When starting a *composed* node on the other hand, only the dictionary
     # style is supported.  To keep the code between the non-composed and
     # composed launch file similar, we use that style here as well.
-    parameters_file = os.path.join(share_dir, 'config', 'standalone.yaml')
+    parameters_file = os.path.join(share_dir, 'config', 'example.yaml')
     with open(parameters_file, 'r') as f:
         parameters = yaml.safe_load(f)['ueye_cam']['ros__parameters']
     return parameters
@@ -79,21 +79,20 @@ def generate_launch_description() -> launch.LaunchDescription:
     launch_nodes = []
     launch_nodes.append(
          launch_ros.actions.ComposableNodeContainer(
-            node_name='cameras',
-            node_namespace='',
+            name='cameras',  # dashing: node_name, foxy: name
+            namespace='',    # dashing: node_namespace, foxy: namespace
             package='rclcpp_components',
-            node_executable='component_container',
+            executable='component_container',  # dashing: node_executable, foxy: executable
             composable_node_descriptions=[
                 launch_ros.descriptions.ComposableNode(
                     package='ueye_cam',
-                    node_plugin='ueye_cam::Node',
-                    node_name='ueye_cam',
+                    plugin='ueye_cam::Node',
+                    name='ueye_cam',
                     parameters=[load_parameters()]
                 ),
             ],
             output='screen',  # 'both'?
-            prefix=['stdbuf -o L'],
-            # emulate_tty=True,  # TODO: in foxy this can be used to replace the prefix workaround
+            emulate_tty=True,  # dashing: prefix=['stdbuf -o L'], foxy, just use emulate_tty=True
         )
     )
     launch_nodes.append(
