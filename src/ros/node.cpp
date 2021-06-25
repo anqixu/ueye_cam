@@ -608,7 +608,21 @@ void Node::declareROSCameraParameters(const CameraParameters& defaults) {
   this->declare_parameter("sensor_scaling",            rclcpp::ParameterValue(defaults.sensor_scaling));
   this->declare_parameter("auto_gain",                 rclcpp::ParameterValue(defaults.auto_gain));
   this->declare_parameter("master_gain",               rclcpp::ParameterValue(defaults.master_gain));
-  this->declare_parameter("red_gain",                  rclcpp::ParameterValue(defaults.red_gain));
+  // TODO: Include parameter descriptions and boundaries for all parameters here.
+  //       - NB: ros2 param describe ueye_cam red_gain will emit this information, but
+  //             rqt-reconfigure is not yet aware of it for e.g. setting sliders
+  //       - Would be useful incorporating min/max constraints in some way in CameraParameters, re-use
+  //         that in validation code.
+  this->declare_parameter("red_gain", defaults.red_gain, rcl_interfaces::msg::ParameterDescriptor()
+    .set__name("red_gain")
+    .set__type(rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE)
+    .set__description("red gain for the image stream, only valid if auto_gain is false")
+    .set__floating_point_range({rcl_interfaces::msg::FloatingPointRange()
+      .set__from_value(0.0)
+      .set__to_value(100.0)
+      .set__step(1.0)}
+    )
+  );
   this->declare_parameter("green_gain",                rclcpp::ParameterValue(defaults.green_gain));
   this->declare_parameter("blue_gain",                 rclcpp::ParameterValue(defaults.blue_gain));
   this->declare_parameter("gain_boost",                rclcpp::ParameterValue(defaults.gain_boost));
