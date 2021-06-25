@@ -63,7 +63,7 @@ def load_parameters() -> str:
     # When starting a *composed* node on the other hand, only the dictionary
     # style is supported.  To keep the code between the non-composed and
     # composed launch file similar, we use that style here as well.
-    parameters_file = os.path.join(share_dir, 'config', 'example.yaml')
+    parameters_file = os.path.join(share_dir, 'config', 'example_ros_configuration.yaml')
     with open(parameters_file, 'r') as f:
         parameters = yaml.safe_load(f)['ueye_cam']['ros__parameters']
     return parameters
