@@ -13,7 +13,7 @@ If you are just building the software, no IDS Software Suite installation is req
 This package will fetch headers and libraries on-the-fly to result in a successful build.
 Note however, that these are not made available for a runtime environment. These headers
 and libraries are not installed to the install space and you'll also need to install
-the IDS discovery daemon fro that.
+the IDS discovery daemon.
 
 **Runtime**
 
@@ -52,7 +52,7 @@ file can be useful for parameters that it does not yet cover.
 
 **Quick Start**
 
-To get started, launch the standalone or component launcher It is configured with a parameterisation that should enable connection to most IDS cameras.
+To get started, launch the standalone or component launcher. It is configured with a parameterisation that should enable connection to most IDS cameras.
 
 ```
 # Install launcher / debugging / viz tools if you don't already have them

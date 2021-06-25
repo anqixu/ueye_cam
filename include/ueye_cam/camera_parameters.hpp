@@ -52,7 +52,7 @@ namespace ueye_cam {
 ** Interfaces
 *****************************************************************************/
 
-// Enums would be nicer, but that generates too many conversions to and fro
+// Enums would be nicer, but that generates too many conversions to and from
 // the underlying driver types.
 struct ColorMode {
   const static std::string MONO8;

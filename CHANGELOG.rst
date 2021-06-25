@@ -2,6 +2,12 @@
 Changelog for package ueye_cam
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.0.0 (2021-06-25)
+------------------
+* ros2 port for Foxy
+* export IDS configuration files
+* Contributors: jmackay2, stonier
+
 1.0.19 (2021-01-13)
 -------------------
 * updated MD5 hash for re-packaged unofficiall IDS drivers archives

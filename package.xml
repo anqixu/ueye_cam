@@ -1,8 +1,8 @@
 <package format="3">
   <name>ueye_cam</name>
-  <version>1.0.19</version>
+  <version>2.0.0</version>
   <description>
-    A ROS nodelet and node that wraps the driver API for UEye cameras
+    A ROS node that wraps the driver API for UEye cameras
     by IDS Imaging Development Systems GMBH.
   </description>
   <maintainer email="anqixu@cim.mcgill.ca">Anqi Xu</maintainer>
