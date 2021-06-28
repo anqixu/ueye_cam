@@ -1075,36 +1075,29 @@ INT UEyeCamDriver::syncCamConfig(string dft_mode_str) {
     return is_err;
   }
 
+  // Check if absolute AOI positioning is set in the cam (e.g. by an .ini)
+  // if yes, deactivate it as it is intentionally not supported by this driver
   UINT start_posX_absolute = 0;
   UINT start_posY_absolute = 0;
-  bool resetResolutionRequired = false;
 
   if ((is_err = is_AOI(cam_handle_, IS_AOI_IMAGE_GET_POS_X_ABS,
       (void*) &start_posX_absolute, sizeof(start_posX_absolute))) != IS_SUCCESS) {
-    ERROR_STREAM("Could not retrieve Area Of Interest (AOI) information for parameter start X absolute for[" <<
+    ERROR_STREAM("Could not retrieve Area Of Interest (AOI) information for parameter start X absolute for [" <<
       cam_name_ << "] (" << err2str(is_err) << ")");
     return is_err;
-  }
-
-  if (start_posX_absolute == IS_AOI_IMAGE_POS_ABSOLUTE) {
-    cam_aoi_.s32X = 0;
-    resetResolutionRequired = true;
   }
 
   if ((is_err = is_AOI(cam_handle_, IS_AOI_IMAGE_GET_POS_Y_ABS,
       (void*) &start_posY_absolute, sizeof(start_posY_absolute))) != IS_SUCCESS) {
-    ERROR_STREAM("Could not retrieve Area Of Interest (AOI) information for parameter start Y absolute for[" <<
+    ERROR_STREAM("Could not retrieve Area Of Interest (AOI) information for parameter start Y absolute for [" <<
       cam_name_ << "] (" << err2str(is_err) << ")");
     return is_err;
   }
 
-  if (start_posY_absolute == IS_AOI_IMAGE_POS_ABSOLUTE) {
-    cam_aoi_.s32Y = 0;
-    resetResolutionRequired = true;
-  }
-
-  if (resetResolutionRequired) {
-    WARN_STREAM("Ignore absolute start X and Y parameter for[" << cam_name_ << "]");
+  if ((start_posX_absolute == IS_AOI_IMAGE_POS_ABSOLUTE) ||  (start_posY_absolute == IS_AOI_IMAGE_POS_ABSOLUTE)) {
+    cam_aoi_.s32X = cam_aoi_.s32X & ~(IS_AOI_IMAGE_POS_ABSOLUTE); // Remove the bit which was set by the bitwise OR with IS_AOI_IMAGE_POS_ABSOLUTE
+    cam_aoi_.s32Y = cam_aoi_.s32Y & ~(IS_AOI_IMAGE_POS_ABSOLUTE);
+    WARN_STREAM("AOI absolute positioning intentionally not supported, ignoring for [" << cam_name_ << "]");
     if ((is_err = setResolution(cam_aoi_.s32Width, cam_aoi_.s32Height,
       cam_aoi_.s32X, cam_aoi_.s32Y, false)) != IS_SUCCESS) return is_err;
   }
