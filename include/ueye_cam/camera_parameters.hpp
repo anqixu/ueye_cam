@@ -147,8 +147,8 @@ struct CameraParameters {
   double frame_rate;                /**< Frame process rate (Hz) [not applicable in external trigger mode] [min:0.01, max:200.0] */
   int pixel_clock;                  /**< Pixel clock (MHz) [min: 1, max: 500] */
 
-  bool flip_vertical;                    /**< Mirror upside down */
-  bool flip_horizontal;                     /**< Mirror left right */
+  bool flip_vertical;               /**< Mirror upside down */
+  bool flip_horizontal;             /**< Mirror left right */
 
   const static std::set<std::string> RestartFrameGrabberSet;
   const static std::set<std::string> ReallocateBufferSet;
@@ -175,7 +175,7 @@ struct CameraParameters {
     white_balance_blue_offset(0),
     flash_delay(0),
     flash_duration(1000),
-    ext_trigger_mode(false),  // should be false? ROS2 dynamic reconfigure had this default as true, but docs as false
+    ext_trigger_mode(false),
     trigger_rising_edge(false),
     gpio1(GPIOMode::INPUT),
     gpio2(GPIOMode::INPUT),
