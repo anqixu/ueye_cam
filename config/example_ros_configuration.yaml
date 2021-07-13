@@ -1,3 +1,8 @@
+# The following configuration is an example of the minimal configuration
+# to get a usable colour stream from the camera.
+#
+# Note that it relies on defaults configured in the referenced headers
+# for all other parameters not expcitly represented here.
 ueye_cam:
   ros__parameters:
     # Node parameters: for defaults, ueye_cam/node_parameters.hpp
