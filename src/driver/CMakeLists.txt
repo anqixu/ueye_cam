@@ -2,7 +2,12 @@
 # Sources
 ###############################################################################
 
-file(GLOB SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.cpp)
+set(
+  SOURCES
+    driver.cpp
+    parameters.cpp
+    utilities.cpp
+)
 
 ###############################################################################
 # Targets
