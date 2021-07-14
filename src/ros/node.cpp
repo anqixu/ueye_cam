@@ -977,7 +977,7 @@ void Node::handleTimeout() {
   //                overkill to create a ueye_cam_interfaces package for a single msg.
   //  - Diagnostics - would be the best option, but it's yet more effort.
   timeout_count_++;
-  RCLCPP_WARN(get_logger(), "UEye: timed out [%s]", timeout_count_);
+  RCLCPP_WARN(get_logger(), "UEye: timed out [%d]", timeout_count_);
 };
 
 } // namespace ueye_cam
