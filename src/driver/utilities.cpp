@@ -30,3 +30,57 @@
 * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
+
+/*****************************************************************************
+ ** Includes
+ *****************************************************************************/
+
+#include <set>
+#include <sstream>
+#include <string>
+
+#include <ueye.h>
+
+#include "../../include/ueye_cam/utilities.hpp"
+
+
+/*****************************************************************************
+ ** Namespaces
+ *****************************************************************************/
+
+namespace ueye_cam
+{
+
+/*****************************************************************************
+ ** Implementation
+ *****************************************************************************/
+
+bool has_intersection(const std::set<std::string>& s1, const std::set<std::string>& s2) {
+  for (const std::string& s: s1) {
+    if (s2.find(s) != s2.end()) { return true; }
+  }
+  for (const std::string& s: s2) {
+    if (s1.find(s) != s1.end()) { return true; }
+  }
+  return false;
+}
+
+std::string sdk_version() {
+
+	// Fetch from the library, this also helps confirm that the library is
+    // available. Alternatively, just fetch UEYE_VERSION_CODE from the header.
+    int version = is_GetDLLVersion();
+    int major_version = version >> 24;
+    int minor_version = (version - (major_version << 24)) >> 16;
+    int patch_version = (version - (major_version << 24) - (minor_version << 16));
+    std::ostringstream ostream;
+    ostream << major_version << "." << minor_version << "." << patch_version;
+    return ostream.str();
+}
+
+
+std::string sdk_required_version() {
+	return std::string("4.94.0+");
+}
+
+} // namespace ueye_cam

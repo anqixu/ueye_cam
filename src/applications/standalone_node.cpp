@@ -30,3 +30,32 @@
 * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
+
+/*****************************************************************************
+ ** Includes
+ *****************************************************************************/
+
+#include <cstdio>
+#include <memory>
+
+#include <rclcpp/rclcpp.hpp>
+
+#include "../../include/ueye_cam/node.hpp"
+
+/*****************************************************************************
+ ** Entry Point
+ *****************************************************************************/
+
+int main(int argc, char** argv)
+{
+  // Configures stdout stream for no buffering
+  setvbuf(stdout, nullptr, _IONBF, BUFSIZ);
+
+  rclcpp::init(argc, argv);
+
+  rclcpp::spin(std::make_shared<ueye_cam::Node>(rclcpp::NodeOptions()));
+
+  rclcpp::shutdown();
+
+  return 0;
+}

@@ -30,3 +30,22 @@
 * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
+
+/*****************************************************************************
+** Ifdefs
+*****************************************************************************/
+
+#ifndef UEYE_CAM_HPP_
+#define UEYE_CAM_HPP_
+
+/*****************************************************************************
+** Includes
+*****************************************************************************/
+
+#include "ueye_cam/camera_driver.hpp"
+#include "ueye_cam/camera_parameters.hpp"
+#include "ueye_cam/node_parameters.hpp"
+#include "ueye_cam/node.hpp"
+#include "ueye_cam/utilities.hpp"
+
+#endif /* UEYE_CAM_HPP_ */

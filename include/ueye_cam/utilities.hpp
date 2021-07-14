@@ -1,7 +1,7 @@
 /*******************************************************************************
 * SOFTWARE LICENSE AGREEMENT (BSD LICENSE):
 *
-* Copyright (c) 2016, Kei Okada
+* Copyright (c) 2013-2021, Anqi Xu and contributors
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -31,18 +31,40 @@
 * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
 
-#include <dlfcn.h>
-#include <ros/ros.h>
+/*****************************************************************************
+** Ifdefs
+*****************************************************************************/
 
-int main(int argc, char **argv) {
-  void *handle;
-  handle = dlopen("libueye_api.so", RTLD_LAZY);
-  if ( ! handle ) {
-    ROS_ERROR("The official IDS uEye driver (libueye_api.so) were not detected on your machine.");
-    ROS_ERROR("You (or a system administrator) MUST still download and install the official IDS uEye drivers (http://en.ids-imaging.com/download-ueye.html).");
-    exit(1);
-  }
-  ros::init(argc, argv, "check_ueye_api");
-  ros::spin();
-  exit(0);
-}
+#ifndef UEYE_CAM_UTILITIES_HPP_
+#define UEYE_CAM_UTILITIES_HPP_
+
+
+/*****************************************************************************
+ ** Includes
+ *****************************************************************************/
+
+#include <set>
+#include <string>
+
+/*****************************************************************************
+ ** Namespaces
+ *****************************************************************************/
+
+namespace ueye_cam
+{
+
+/*****************************************************************************
+** Interfaces
+*****************************************************************************/
+
+bool has_intersection(const std::set<std::string>& s1, const std::set<std::string>& s2);
+std::string sdk_version();
+std::string sdk_required_version();
+
+#endif /* UEYE_CAM_UTILITIES_HPP_ */
+
+/*****************************************************************************
+ ** Namespaces
+ *****************************************************************************/
+
+} // namespace ueye_cam

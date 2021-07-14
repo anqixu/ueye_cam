@@ -1,0 +1,17 @@
+# The following configuration is an example of the minimal configuration
+# to get a usable colour stream from the camera.
+#
+# Note that it relies on defaults configured in the referenced headers
+# for all other parameters not expcitly represented here.
+ueye_cam:
+  ros__parameters:
+    # Node parameters: for defaults, ueye_cam/node_parameters.hpp
+    camera_name: froody
+    frame_name: froody
+    camera_id: 0                # 0 : ANY_CAMERA
+    # Camera parameters: for defaults, ueye_cam/camera_parameters.hpp
+    auto_frame_rate: false
+    frame_rate: 2.0
+    color_mode: rgb8
+    auto_gain: true
+    auto_white_balance: true
