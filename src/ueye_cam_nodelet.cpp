@@ -588,8 +588,10 @@ INT UEyeCamNodelet::parseROSParams(ros::NodeHandle& local_nh) {
     if ((is_err = setBinning(cam_params_.binning, false)) != IS_SUCCESS) return is_err;
     if ((is_err = setResolution(cam_params_.image_width, cam_params_.image_height,
         cam_params_.image_left, cam_params_.image_top, false)) != IS_SUCCESS) return is_err;
-    if ((is_err = setSensorScaling(cam_params_.sensor_scaling, false)) != IS_SUCCESS) return is_err;
-
+    SENSORSCALERINFO sensorScalerInfo;  // Not all cameras support sensor scaling. Check if supported and only try to set it if supported
+    if (is_GetSensorScalerInfo(cam_handle_,&sensorScalerInfo, sizeof(sensorScalerInfo)) == IS_SUCCESS ) {
+      if ((is_err = setSensorScaling(cam_params_.sensor_scaling, false)) != IS_SUCCESS) return is_err;
+    }
     // Force synchronize settings and re-allocate frame buffer for redundancy
     // NOTE: although this might not be needed, assume that parseROSParams()
     //       is called only once per nodelet, thus ignore cost
