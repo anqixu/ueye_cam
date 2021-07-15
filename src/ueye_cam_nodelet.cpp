@@ -978,10 +978,13 @@ INT UEyeCamNodelet::connectCam() {
   if ((is_err = UEyeCamDriver::connectCam()) != IS_SUCCESS) return is_err;
 
   // (Attempt to) load UEye camera parameter configuration file
-  if (cam_params_filename_.length() <= 0) { // Use default filename
-    cam_params_filename_ = string(getenv("HOME")) + "/.ros/camera_conf/" + cam_name_ + ".ini";
+  if (cam_params_filename_.length() <= 0) { // Try to use default filename if not specified otherwise
+    std::string cam_params_filename_fallback = string(getenv("HOME")) + "/.ros/camera_conf/" + cam_name_ + ".ini";
+    if (access( cam_params_filename_fallback.c_str(), F_OK ) != -1 ) { cam_params_filename_=cam_params_filename_fallback;}
   }
-  if ((is_err = loadCamConfig(cam_params_filename_)) != IS_SUCCESS) return is_err;
+  if (cam_params_filename_.length() > 0) {
+    if ((is_err = loadCamConfig(cam_params_filename_)) != IS_SUCCESS) return is_err;
+  }
 
   // Query existing configuration parameters from camera
   if ((is_err = queryCamParams()) != IS_SUCCESS) return is_err;
