@@ -1,0 +1,38 @@
+name: Build Test (not for release)
+
+# Controls when the action will run
+on:
+  # Triggers the workflow on push or pull request events
+  push:
+    branches: [ foxy ]
+  pull_request:
+    branches: [ foxy ]
+
+# Jobs that should be run
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        # In theory this could be [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-20.04]
+        #linter: [clang_tidy, cppcheck, cpplint, uncrustify, xmllint]
+      fail-fast: false
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Setup ROS 2
+      uses: ros-tooling/setup-ros@v0.2
+      with:
+        required-ros-distributions: foxy
+    - name: CI
+      uses: ros-tooling/action-ros-ci@v0.2
+      with:
+        package-name: ueye_cam
+        target-ros2-distro: foxy
+    #- name: Linter
+    #  uses: ros-tooling/action-ros2-lint@0.0.6
+    #  with:
+    #    linter: ${{ matrix.linter }}
+    #    package-name: ueye_cam
+    #    distribution: foxy
