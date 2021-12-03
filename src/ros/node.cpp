@@ -953,7 +953,8 @@ rclcpp::Time Node::getImageTimestamp() {
 rclcpp::Time Node::getImageTickTimestamp() {
   uint64_t tick;
   if(getClockTick(&tick)) {
-    return init_ros_time_ + rclcpp::Duration(double(tick - init_clock_tick_)*1e-7);
+    // convert clock tick to chrono nanoseconds for Duration
+    return init_ros_time_ + rclcpp::Duration(std::chrono::nanoseconds((tick - init_clock_tick_)*100));
   }
   return this->now();
 }
