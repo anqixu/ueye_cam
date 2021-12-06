@@ -854,7 +854,7 @@ rcl_interfaces::msg::SetParametersResult Node::onParameterChange(std::vector<rcl
     // restore original 'working' parameters
     std::ostringstream ostream;
     ostream << "failed to reconfigure parameters on camera, rejecting [" << e.what() << "]";
-    RCLCPP_WARN(this->get_logger(), ostream.str().c_str());
+    RCLCPP_WARN(this->get_logger(), "%s", ostream.str().c_str());
     try {
       std::lock_guard<std::mutex> guard{parameter_mutex_};  // setCamParams updates camera_parameters_
       setCamParams(original_parameters);
@@ -953,7 +953,8 @@ rclcpp::Time Node::getImageTimestamp() {
 rclcpp::Time Node::getImageTickTimestamp() {
   uint64_t tick;
   if(getClockTick(&tick)) {
-    return init_ros_time_ + rclcpp::Duration(double(tick - init_clock_tick_)*1e-7);
+    // convert clock tick to chrono nanoseconds for Duration
+    return init_ros_time_ + rclcpp::Duration(std::chrono::nanoseconds((tick - init_clock_tick_)*100));
   }
   return this->now();
 }
@@ -967,7 +968,7 @@ void Node::printConfiguration() const {
   ostream << "UEye Camera Configuration\n\n";
   ostream << node_parameters_.to_str() << "\n";
   ostream << camera_parameters_.to_str();
-  RCLCPP_INFO(this->get_logger(), ostream.str().c_str());
+  RCLCPP_INFO(this->get_logger(), "%s", ostream.str().c_str());
 }
 
 void Node::handleTimeout() {
