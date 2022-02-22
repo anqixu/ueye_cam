@@ -185,16 +185,30 @@ Node::Node(const rclcpp::NodeOptions & options):
   /******************************************
    * Camera Connection
    ******************************************/
-  try {
-    Driver::connectCam();
-  } catch (const std::runtime_error& e) {
-    std::ostringstream ostream;
-    ostream << "failed to connect to camera '" << node_parameters_.camera_name << "', aborting.";
-    log_nested_exception(FATAL, this->get_logger(), ostream.str());
-    rclcpp::shutdown();
-    return;
+  int n_try = 0;
+  bool success = false;
+  RCLCPP_INFO(this->get_logger(), "Trying to connect to the camera");
+  while(!success && n_try<max_try){
+    n_try++;
+    try {
+      Driver::connectCam();
+      success = true;
+    }
+    catch (const std::runtime_error& e) {
+      // if fail to connect, try again in 3s
+      std::ostringstream ostream;
+      ostream << "failed to connect to camera '" << node_parameters_.camera_name << "'. Try : " << std::to_string(n_try) << "/" << std::to_string(max_try);
+      log_nested_exception(ERROR, this->get_logger(), ostream.str());
+      std::this_thread::sleep_for(std::chrono::milliseconds(sleeping_time_milli));
+    }
   }
-
+  if(n_try>=max_try){
+      std::ostringstream ostream;
+      ostream << "failed to connect to camera '" << node_parameters_.camera_name << "', aborting.";
+      log_nested_exception(FATAL, this->get_logger(), ostream.str());
+      rclcpp::shutdown();
+      return;
+  }
   // Camera Parameterisation
   CameraParameters default_camera_parameters, camera_parameters;
   if (std::ifstream(node_parameters_.ids_configuration_filename.c_str()).good()) {

@@ -86,7 +86,10 @@ private:
    * Constants
    *******************************************/
   const static std::map<int, std::string> ENCODING_DICTIONARY;  /**< Maps UEye to sensor_msgs encoding constants. **/
-
+  const static int max_try = 10; /** <Maximum number of time the node will attempt to connect using Driver::connectCam>*/
+  const int sleeping_time_milli = 3000;/** <Time the node will sleep between connection try using Driver::connectCam>*/
+  
+  
   /********************************************
    * Parameters
    *******************************************/
