@@ -210,7 +210,7 @@ void UEyeCamNodelet::onInit() {
       "Output Rate (Hz):\t" << cam_params_.output_rate << endl <<
       "Pixel Clock (MHz):\t" << cam_params_.pixel_clock << endl <<
       "GPIO1 Mode:\t" << cam_params_.gpio1 << endl <<
-      "GPIO2 Mode:\t" << cam_params_.gpio1 << endl <<
+      "GPIO2 Mode:\t" << cam_params_.gpio2 << endl <<
       "Mirror Image Upside Down:\t" << cam_params_.flip_upd << endl <<
       "Mirror Image Left Right:\t" << cam_params_.flip_lr << endl
       );
