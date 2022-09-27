@@ -720,6 +720,7 @@ void Node::reflectParameters() {
 
   // Also reflect to the ROS msg structures
   ros_image_.header.frame_id = node_parameters_.frame_name;
+  ros_cam_info_.header.frame_id = node_parameters_.frame_name;
 }
 
 rcl_interfaces::msg::SetParametersResult Node::onParameterChange(std::vector<rclcpp::Parameter> parameters) {
