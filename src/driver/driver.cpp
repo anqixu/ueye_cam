@@ -1870,7 +1870,7 @@ INT Driver::name2colormode(const std::string& name) {
 
 
 const std::string Driver::colormode2name(INT mode) {
-  for (const std::pair<std::string, INT>& value: COLOR_DICTIONARY) {
+  for (const std::pair<const std::string, INT>& value: COLOR_DICTIONARY) {
     if (value.second == mode) {
       return value.first;
     }
